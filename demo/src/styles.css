@@ -338,7 +338,8 @@ body {
 .app-main {
   flex: 1;
   overflow-y: auto;
-  padding: 18px 16px 88px;
+  /* Clear the fixed bottom tabbar (~50px) plus iPhone home-bar safe inset, with breathing room. */
+  padding: 18px 16px calc(110px + var(--safe-bottom));
 }
 
 /* ── Tab bar ──────────────────────────────────────────────────────── */
