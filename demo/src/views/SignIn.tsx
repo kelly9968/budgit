@@ -31,7 +31,11 @@ export function SignIn({ onSignedIn }: Props) {
         </div>
         <h1 className="signin-h1">Budget on top of your sheet.</h1>
         <p className="signin-p">
-          Sign in with Google. We&rsquo;ll create a tracking sheet for you, or use one you already have.
+          <strong>Budgit</strong> is a free, browser-only budgeting app that
+          keeps your transactions in <em>your own</em> Google Sheet. Track
+          variable spending, see daily and end-of-month forecasts, and catch
+          overspend early &mdash; without sending your data to anyone but
+          you and Google.
         </p>
         <button
           type="button"
@@ -43,10 +47,27 @@ export function SignIn({ onSignedIn }: Props) {
           <span>{working ? 'Connecting…' : 'Continue with Google'}</span>
         </button>
         {error && <div className="signin-error">{error}</div>}
+
+        <div className="signin-how">
+          <div className="signin-how-h">How it works</div>
+          <ol className="signin-how-list">
+            <li>Sign in with Google.</li>
+            <li>Create a fresh tracking sheet, or pick an existing one. Budgit only sees the sheet you choose.</li>
+            <li>Add transactions on the go &mdash; they sync straight to your sheet, which stays under your control in Drive.</li>
+          </ol>
+        </div>
+
         <ul className="signin-perms">
           <li>Read &amp; write only the sheet you choose or we create</li>
-          <li>Your data never touches our servers &mdash; this app is static</li>
+          <li>No backend &mdash; the app runs entirely in your browser</li>
+          <li>No analytics, no third-party trackers, no data sharing</li>
         </ul>
+        <div className="signin-legal">
+          By continuing you agree to our{' '}
+          <a href="/terms.html" target="_blank" rel="noreferrer">Terms</a>
+          {' '}and{' '}
+          <a href="/privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a>.
+        </div>
       </div>
     </div>
   );

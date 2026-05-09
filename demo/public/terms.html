@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Terms of Service — Budgit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #0a0a0a; --ink2: #555; --ink3: #999;
+    --bg: #fafaf8; --hair: rgba(10,10,10,0.07);
+    --serif: 'DM Serif Display', Georgia, serif;
+    --sans: 'DM Sans', -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.65;
+    padding: 48px 24px 80px;
+  }
+  .wrap { max-width: 620px; margin: 0 auto; }
+  .logo {
+    display: flex; flex-direction: column; gap: 5px;
+    margin-bottom: 36px;
+  }
+  .logo-text { font-family: var(--serif); font-size: 22px; letter-spacing: -0.3px; }
+  .logo-line {
+    height: 2px; width: 56px; border-radius: 2px;
+    background: linear-gradient(90deg, #e24b4a, #378add, #639922);
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: 36px;
+    line-height: 1.05;
+    letter-spacing: -0.018em;
+    margin-bottom: 8px;
+  }
+  .meta {
+    font-size: 12px; color: var(--ink3);
+    text-transform: uppercase; letter-spacing: 0.12em;
+    margin-bottom: 32px;
+  }
+  h2 {
+    font-family: var(--serif); font-size: 22px;
+    margin-top: 32px; margin-bottom: 8px;
+    letter-spacing: -0.012em;
+  }
+  p, ul { font-size: 15px; color: var(--ink2); margin-bottom: 12px; font-weight: 300; }
+  ul { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  strong { color: var(--ink); font-weight: 500; }
+  a { color: #378add; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .footer {
+    margin-top: 48px; padding-top: 20px;
+    border-top: 1px solid var(--hair);
+    font-size: 13px; color: var(--ink3);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <span class="logo-text">Budgit</span>
+    <span class="logo-line"></span>
+  </div>
+  <h1>Terms of Service</h1>
+  <div class="meta">Effective 2026-05-09</div>
+
+  <p>
+    Budgit is a free, open-source budgeting tool that runs entirely in your browser
+    and stores data in your own Google Sheet. Use of the app is governed by these
+    terms.
+  </p>
+
+  <h2>Use of the service</h2>
+  <ul>
+    <li>You're responsible for the data you enter and for the Google account you connect.</li>
+    <li>Don't try to reverse-engineer the app to attack Google's APIs, exceed their quota, or impersonate other users.</li>
+    <li>Don't use the app to track, log, or analyze data belonging to people who haven't consented.</li>
+  </ul>
+
+  <h2>Your data</h2>
+  <p>
+    Budgit doesn't store your data — it lives in your Google Sheet. You own it,
+    you control it, you can delete it at any time from Google Drive. See our
+    <a href="/privacy.html">Privacy Policy</a> for details.
+  </p>
+
+  <h2>No warranty</h2>
+  <p>
+    Budgit is provided "as is", without warranty of any kind. The app is a
+    convenience layer over Google Sheets; it doesn't replace bookkeeping software
+    and shouldn't be relied on for tax, legal, or financial advice. Bugs may
+    cause incorrect math or data loss — back up important sheets manually if
+    that risk matters to you.
+  </p>
+
+  <h2>Liability</h2>
+  <p>
+    To the fullest extent permitted by law, the authors of Budgit will not be
+    liable for any damages arising from use of the app, including (without
+    limitation) loss of data, missed budgets, or financial decisions made based
+    on what the dashboard shows.
+  </p>
+
+  <h2>Changes</h2>
+  <p>
+    Budgit is open-source and evolves quickly. These terms can change; if they
+    materially do, the "Effective" date above will update. Continued use after
+    a change constitutes acceptance.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    Budgit is hosted at <a href="https://budgit.3218i.com">budgit.3218i.com</a>.
+    Questions or concerns: open an issue at
+    <a href="https://github.com/kelly9968/budgit">github.com/kelly9968/budgit</a>.
+  </p>
+
+  <div class="footer">
+    <p>
+      <a href="https://budgit.3218i.com/">← Back to Budgit</a>
+      &nbsp;·&nbsp;
+      <a href="/privacy.html">Privacy Policy</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>

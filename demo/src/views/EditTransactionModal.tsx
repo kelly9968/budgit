@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { getCategory, type Category } from '../lib/categories';
 import type { Transaction } from '../lib/types';
 
@@ -64,7 +65,10 @@ export function EditTransactionModal({
     }
   };
 
-  return (
+  // Portal to body so modal isn't subject to .app-main / .tabbar
+  // stacking-context games (modal would otherwise render under the
+  // transformed tabbar in some browsers).
+  return createPortal(
     <div className="modal-ov" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-handle" />
@@ -161,6 +165,7 @@ export function EditTransactionModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

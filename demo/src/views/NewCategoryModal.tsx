@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   COLOR_PALETTE,
   EMOJI_PALETTE,
@@ -38,7 +39,7 @@ export function NewCategoryModal({ existing, onSave, onClose }: Props) {
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-ov" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-handle" />
@@ -96,6 +97,7 @@ export function NewCategoryModal({ existing, onSave, onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

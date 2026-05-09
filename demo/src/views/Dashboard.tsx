@@ -248,12 +248,15 @@ export function Dashboard({ txns, budget, onBudgetChange }: Props) {
             <>
               <div className="dash-rec-num">{recovery}</div>
               <div className="dash-rec-text">
-                <strong>{recovery === 1 ? 'day' : 'days'} of low spend</strong>{' '}
+                <strong>
+                  {recovery === 1 ? 'day' : 'days'} of{' '}
+                  {assumed === 0 ? 'no spending' : 'low spending'}
+                </strong>{' '}
                 to get back under the budget line.
                 <br />
                 <span style={{ fontSize: 11, color: 'var(--ink3)' }}>
                   Assumes:{' '}
-                  {assumed === 0 ? '$0 spend days' : `$${assumed}/day`}
+                  {assumed === 0 ? '$0 / day' : `$${assumed} / day`}
                 </span>
               </div>
             </>
@@ -279,11 +282,19 @@ export function Dashboard({ txns, budget, onBudgetChange }: Props) {
         <div className="dash-lbl" style={{ marginBottom: 10 }}>
           Cumulative spend vs. budget
         </div>
-        <ChartCanvas metrics={m} budget={budget} />
+        <ChartCanvas
+          metrics={m}
+          budget={budget}
+          assumed={assumed}
+          recoveryDays={recovery}
+        />
         <div className="dash-legend">
           <span><span className="dot" style={{ background: BLUE }} /> Actual</span>
           <span><span className="dot" style={{ background: GREEN }} /> Forecast</span>
           <span><span className="dot" style={{ background: RED }} /> Budget</span>
+          {recovery > 0 && !m.onTrack && (
+            <span><span className="dot" style={{ background: AMBER }} /> Recovery</span>
+          )}
         </div>
       </div>
 
@@ -292,7 +303,7 @@ export function Dashboard({ txns, budget, onBudgetChange }: Props) {
         <div className="dash-lbl" style={{ marginBottom: 10 }}>
           Daily tracker
         </div>
-        <DailyTable metrics={m} />
+        <DailyTable metrics={m} recoveryDays={recovery} onTrack={m.onTrack} />
       </div>
     </div>
   );
@@ -344,9 +355,13 @@ function Bar({
 function ChartCanvas({
   metrics,
   budget,
+  assumed,
+  recoveryDays,
 }: {
   metrics: ReturnType<typeof computeDashboard>;
   budget: number;
+  assumed: number;
+  recoveryDays: number;
 }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
 
@@ -370,6 +385,20 @@ function ChartCanvas({
       if (d < m.todayDay) return null;
       if (d === m.todayDay) return m.spent;
       return Math.round((m.spent + m.blended * (d - m.todayDay)) * 100) / 100;
+    });
+
+    // Recovery line: starting at today's spend, projects forward at the
+    // user's assumed daily-spend rate. Drawn only when the user is off
+    // track AND has set a recovery period (recoveryDays > 0). Stops at
+    // the day cumulative dips back below the budget line.
+    const showRecovery = !m.onTrack && recoveryDays > 0;
+    const rData = Array.from({ length: m.daysInMonth }, (_, i) => {
+      if (!showRecovery) return null;
+      const d = i + 1;
+      if (d < m.todayDay) return null;
+      const offset = d - m.todayDay;
+      if (offset > recoveryDays) return null;
+      return Math.round((m.spent + assumed * offset) * 100) / 100;
     });
 
     const yMax = Math.max(budget, ...m.cum, ...fData.filter((v): v is number => v != null)) + 300;
@@ -407,6 +436,17 @@ function ChartCanvas({
             borderWidth: 1.5,
             borderDash: [5, 3],
             pointRadius: 0,
+            tension: 0,
+            fill: false,
+          },
+          {
+            label: 'Recovery',
+            data: rData,
+            borderColor: AMBER,
+            borderWidth: 2,
+            borderDash: [2, 2],
+            pointRadius: 0,
+            pointHoverRadius: 4,
             tension: 0,
             fill: false,
           },
@@ -448,7 +488,7 @@ function ChartCanvas({
     });
 
     return () => chart.destroy();
-  }, [metrics, budget]);
+  }, [metrics, budget, assumed, recoveryDays]);
 
   return (
     <div className="dash-chart-wrap">
@@ -457,9 +497,18 @@ function ChartCanvas({
   );
 }
 
-function DailyTable({ metrics }: { metrics: ReturnType<typeof computeDashboard> }) {
+function DailyTable({
+  metrics,
+  recoveryDays,
+  onTrack,
+}: {
+  metrics: ReturnType<typeof computeDashboard>;
+  recoveryDays: number;
+  onTrack: boolean;
+}) {
   const m = metrics;
   let cum = 0;
+  const showRecovery = !onTrack && recoveryDays > 0;
   const rows = Array.from({ length: m.daysInMonth }, (_, i) => {
     const d = i + 1;
     const ds = d <= m.todayDay ? m.raw[d - 1] : null;
@@ -474,8 +523,14 @@ function DailyTable({ metrics }: { metrics: ReturnType<typeof computeDashboard> 
     const stClass = st === null ? '' : st <= bd ? 'cg' : 'cr';
     const dsClass = ds === null ? '' : ds === 0 ? 'cd' : ds <= m.dailyRate ? 'cg' : 'cr';
     const pmClass = pm === null ? '' : pm < 0 ? 'cg' : pm > 0 ? 'cr' : 'cd';
+    const isToday = d === m.todayDay;
+    const isRecovery =
+      showRecovery && d > m.todayDay && d <= m.todayDay + recoveryDays;
+    const cls = [isToday && 'today', isRecovery && 'recovery']
+      .filter(Boolean)
+      .join(' ');
     return (
-      <tr key={d} className={d === m.todayDay ? 'today' : ''}>
+      <tr key={d} className={cls}>
         <td>{dLbl}</td>
         <td>{fmtUSDk(bd)}</td>
         <td className={stClass}>{st !== null ? fmtUSDk(st) : '—'}</td>

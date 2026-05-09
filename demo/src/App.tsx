@@ -123,6 +123,7 @@ function Main({
   const [tab, setTab] = useState<TabId>('dash');
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [firstLoadDone, setFirstLoadDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [budget, setBudget] = useState<number>(DEFAULT_BUDGET);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
@@ -161,6 +162,7 @@ function Main({
       setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
       setLoading(false);
+      setFirstLoadDone(true);
     }
   }, [config.sheetId]);
 
@@ -277,40 +279,46 @@ function Main({
       </div>
 
       <main className="app-main">
-        {tab === 'dash' && (
-          <Dashboard
-            txns={txns}
-            budget={budget}
-            onBudgetChange={handleBudgetChange}
-          />
-        )}
-        {tab === 'add' && (
-          <Add
-            categories={categories}
-            onAdd={handleAdd}
-            onAddCategory={handleAddCategory}
-          />
-        )}
-        {tab === 'tx' && (
-          <Transactions
-            txns={txns}
-            categories={categories}
-            loading={loading}
-            onSelect={setEditingTx}
-          />
-        )}
-        {tab === 'demo' && import.meta.env.DEV && (
-          <DemoData categories={categories} onBulkAdd={handleBulkAdd} />
-        )}
+        {!firstLoadDone ? (
+          <LoadingSplash />
+        ) : (
+          <>
+            {tab === 'dash' && (
+              <Dashboard
+                txns={txns}
+                budget={budget}
+                onBudgetChange={handleBudgetChange}
+              />
+            )}
+            {tab === 'add' && (
+              <Add
+                categories={categories}
+                onAdd={handleAdd}
+                onAddCategory={handleAddCategory}
+              />
+            )}
+            {tab === 'tx' && (
+              <Transactions
+                txns={txns}
+                categories={categories}
+                loading={loading}
+                onSelect={setEditingTx}
+              />
+            )}
+            {tab === 'demo' && import.meta.env.DEV && (
+              <DemoData categories={categories} onBulkAdd={handleBulkAdd} />
+            )}
 
-        {editingTx && (
-          <EditTransactionModal
-            tx={editingTx}
-            categories={categories}
-            onSave={handleEditSave}
-            onDelete={handleEditDelete}
-            onClose={() => setEditingTx(null)}
-          />
+            {editingTx && (
+              <EditTransactionModal
+                tx={editingTx}
+                categories={categories}
+                onSave={handleEditSave}
+                onDelete={handleEditDelete}
+                onClose={() => setEditingTx(null)}
+              />
+            )}
+          </>
         )}
       </main>
 
@@ -322,6 +330,23 @@ function Main({
           <TabBtn id="demo" current={tab} setTab={setTab} icon={<DemoIcon />} label="Demo" />
         )}
       </nav>
+    </div>
+  );
+}
+
+// Loading state shown while the first refresh resolves. Keeps the header
+// + tabbar visible so the user has spatial continuity, just gates the
+// content area to avoid the "jump" when data lands and replaces defaults.
+function LoadingSplash() {
+  return (
+    <div className="loading-splash" aria-live="polite" aria-busy="true">
+      <div className="loading-mark">B</div>
+      <div className="loading-line">
+        <span className="loading-dot" />
+        <span className="loading-dot" />
+        <span className="loading-dot" />
+      </div>
+      <div className="loading-text">Reading from your sheet</div>
     </div>
   );
 }
