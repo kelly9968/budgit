@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
-import { getCategory } from '../lib/categories';
+import { getCategory, type Category } from '../lib/categories';
 import { fmtUSD } from '../lib/budget';
 import type { Transaction } from '../lib/types';
 
 type Props = {
   txns: Transaction[];
+  categories: Category[];
   loading: boolean;
+  onSelect: (tx: Transaction) => void;
 };
 
 const fDay = (iso: string) => {
@@ -19,7 +21,7 @@ const fDay = (iso: string) => {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-export function Transactions({ txns, loading }: Props) {
+export function Transactions({ txns, categories, loading, onSelect }: Props) {
   const grouped = useMemo(() => {
     const sorted = [...txns].sort((a, b) => b.date.localeCompare(a.date));
     const map = new Map<string, Transaction[]>();
@@ -48,16 +50,24 @@ export function Transactions({ txns, loading }: Props) {
           <div className="tx-day">{day}</div>
           <div className="tx-grp">
             {items.map((t, i) => {
-              const c = getCategory(t.cat);
+              const c = getCategory(t.cat, categories);
+              const editable = t._row !== undefined;
               return (
-                <div className="tx-row" key={`${t.date}-${i}`}>
+                <button
+                  type="button"
+                  className={`tx-row ${editable ? '' : 'tx-row-static'}`}
+                  key={`${t.date}-${i}`}
+                  onClick={() => editable && onSelect(t)}
+                  disabled={!editable}
+                  aria-label={editable ? `Edit ${t.cat} ${fmtUSD(t.amount)}` : undefined}
+                >
                   <div className="tx-bdg" style={{ background: c.color }}>{c.icon}</div>
                   <div className="tx-info">
                     <span className="tx-cat">{t.cat}</span>
                     {t.note && <span className="tx-note">{t.note}</span>}
                   </div>
                   <div className="tx-amt">-{fmtUSD(t.amount)}</div>
-                </div>
+                </button>
               );
             })}
           </div>

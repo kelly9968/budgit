@@ -8,6 +8,8 @@ import {
 } from '../lib/budget';
 import type { Transaction } from '../lib/types';
 
+type SelectedMonth = { year: number; month: number };
+
 type Props = {
   txns: Transaction[];
   budget: number;
@@ -22,8 +24,37 @@ const BLUE = '#378add';
 const colourFor = (rate: number, dr: number): string =>
   rate <= dr ? GREEN : rate <= dr * 1.15 ? AMBER : RED;
 
+// Build a Date that points to the right "today" for the selected month:
+//  - if it's the actual current month, use the real today
+//  - past months: last day of that month (so todayDay = daysInMonth, full
+//    cumulative shown)
+//  - future months: first day (so the chart starts blank)
+function effectiveToday(sel: SelectedMonth): Date {
+  const now = new Date();
+  if (sel.year === now.getFullYear() && sel.month === now.getMonth()) {
+    return now;
+  }
+  const isPast =
+    sel.year < now.getFullYear() ||
+    (sel.year === now.getFullYear() && sel.month < now.getMonth());
+  if (isPast) {
+    // last day of selected month
+    return new Date(sel.year, sel.month + 1, 0);
+  }
+  // future
+  return new Date(sel.year, sel.month, 1);
+}
+
 export function Dashboard({ txns, budget, onBudgetChange }: Props) {
-  const m = useMemo(() => computeDashboard(txns, budget), [txns, budget]);
+  const now = new Date();
+  const [sel, setSel] = useState<SelectedMonth>({
+    year: now.getFullYear(),
+    month: now.getMonth(),
+  });
+
+  const today = useMemo(() => effectiveToday(sel), [sel]);
+  const m = useMemo(() => computeDashboard(txns, budget, today), [txns, budget, today]);
+
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(budget));
   const [assumed, setAssumed] = useState(0);
@@ -33,17 +64,62 @@ export function Dashboard({ txns, budget, onBudgetChange }: Props) {
     month: 'long',
     year: 'numeric',
   });
+  const isCurrentMonth =
+    sel.year === now.getFullYear() && sel.month === now.getMonth();
+  const isFuture =
+    sel.year > now.getFullYear() ||
+    (sel.year === now.getFullYear() && sel.month > now.getMonth());
+
+  const navMonth = (delta: number) => {
+    const next = new Date(sel.year, sel.month + delta, 1);
+    setSel({ year: next.getFullYear(), month: next.getMonth() });
+  };
 
   return (
     <div className="dash">
-      <div className="dash-month">{monthLbl}</div>
+      <div className="dash-monthnav">
+        <button
+          type="button"
+          className="dash-nav-btn"
+          onClick={() => navMonth(-1)}
+          aria-label="Previous month"
+        >‹</button>
+        <div className="dash-monthnav-lbl">
+          <div className="dash-month">{monthLbl}</div>
+          {!isCurrentMonth && (
+            <button
+              type="button"
+              className="dash-today-btn"
+              onClick={() =>
+                setSel({ year: now.getFullYear(), month: now.getMonth() })
+              }
+            >
+              Today
+            </button>
+          )}
+        </div>
+        <button
+          type="button"
+          className="dash-nav-btn"
+          onClick={() => navMonth(1)}
+          aria-label="Next month"
+        >›</button>
+      </div>
+
+      {isFuture && (
+        <div className="dash-future-note">
+          Looking ahead — no spend logged for this month yet.
+        </div>
+      )}
 
       {/* Spend hero */}
       <div className="dash-card">
         <div className="dash-hero">
           <div>
             <div className="dash-lbl">Spend to date</div>
-            <div className="dash-hero-amt">{fmtUSD(m.spent)}</div>
+            <div className="dash-hero-amt">
+              <SerifAmount value={m.spent} />
+            </div>
             <div
               className={`dash-pill ${
                 m.onTrack ? 'on' : m.nearTrack ? 'warn' : 'over'
@@ -72,7 +148,7 @@ export function Dashboard({ txns, budget, onBudgetChange }: Props) {
           <div
             className="dash-bar-fill"
             style={{
-              width: `${Math.min(100, Math.round((m.spent / budget) * 100))}%`,
+              width: `${Math.min(100, Math.round((m.spent / Math.max(budget, 1)) * 100))}%`,
               background: colourFor(
                 m.spent / Math.max(m.todayDay, 1),
                 m.dailyRate,
@@ -222,6 +298,22 @@ export function Dashboard({ txns, budget, onBudgetChange }: Props) {
   );
 }
 
+// Editorial number rendering: dollars set in serif, cents reduced and
+// raised like a pull-quote price tag. Splits the formatted string from
+// fmtUSD on the decimal — main amount stays inline, cents wrap into
+// .amt-cents (CSS shrinks + superscripts).
+function SerifAmount({ value }: { value: number }) {
+  const formatted = fmtUSD(value);
+  const dotIdx = formatted.lastIndexOf('.');
+  if (dotIdx < 0) return <>{formatted}</>;
+  return (
+    <>
+      {formatted.slice(0, dotIdx)}
+      <span className="amt-cents">{formatted.slice(dotIdx)}</span>
+    </>
+  );
+}
+
 function Bar({
   label,
   value,
@@ -279,6 +371,8 @@ function ChartCanvas({
       if (d === m.todayDay) return m.spent;
       return Math.round((m.spent + m.blended * (d - m.todayDay)) * 100) / 100;
     });
+
+    const yMax = Math.max(budget, ...m.cum, ...fData.filter((v): v is number => v != null)) + 300;
 
     const chart = new Chart(ref.current, {
       type: 'line',
@@ -347,7 +441,7 @@ function ChartCanvas({
             grid: { color: 'rgba(0,0,0,.04)' },
             border: { display: false },
             min: 0,
-            max: budget + 300,
+            max: yMax,
           },
         },
       },

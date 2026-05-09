@@ -1,13 +1,14 @@
-import { useState } from 'react';
-import { DEFAULT_CATEGORIES, getCategory } from '../lib/categories';
+import { useEffect, useState } from 'react';
+import { getCategory, type Category } from '../lib/categories';
+import { NewCategoryModal } from './NewCategoryModal';
 import type { Transaction } from '../lib/types';
 
 type Props = {
+  categories: Category[];
   onAdd: (tx: Transaction) => Promise<void>;
+  onAddCategory: (cat: Category) => Promise<void>;
 };
 
-// Use *local* date components — toISOString gives UTC, which can be a day off
-// in westerly timezones during evening hours.
 const todayISO = () => {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -20,16 +21,24 @@ const fmtDateLong = (iso: string) => {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-export function Add({ onAdd }: Props) {
+export function Add({ categories, onAdd, onAddCategory }: Props) {
   const [date, setDate] = useState(todayISO());
   const [amount, setAmount] = useState('');
-  const [cat, setCat] = useState(DEFAULT_CATEGORIES[0].name);
+  const [cat, setCat] = useState<string>(categories[0]?.name ?? 'Other');
   const [note, setNote] = useState('');
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
-  const selectedCat = getCategory(cat);
+  // If the selected category is removed (e.g., on first metadata load), fall
+  // back to the first available one.
+  useEffect(() => {
+    if (categories.length === 0) return;
+    if (!categories.some((c) => c.name === cat)) setCat(categories[0].name);
+  }, [categories, cat]);
+
+  const selectedCat = getCategory(cat, categories);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +60,12 @@ export function Add({ onAdd }: Props) {
     } finally {
       setWorking(false);
     }
+  };
+
+  const handleAddCategory = async (newCat: Category) => {
+    await onAddCategory(newCat);
+    setCat(newCat.name);
+    setShowModal(false);
   };
 
   return (
@@ -87,7 +102,7 @@ export function Add({ onAdd }: Props) {
       <div className="add-row">
         <span className="add-row-lbl">Category</span>
         <div className="add-cats">
-          {DEFAULT_CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <button
               key={c.name}
               type="button"
@@ -99,6 +114,14 @@ export function Add({ onAdd }: Props) {
               <span className="add-cat-name">{c.name}</span>
             </button>
           ))}
+          <button
+            type="button"
+            className="add-cat add-cat-new"
+            onClick={() => setShowModal(true)}
+          >
+            <span className="add-cat-ico">+</span>
+            <span className="add-cat-name">New</span>
+          </button>
         </div>
       </div>
 
@@ -120,6 +143,14 @@ export function Add({ onAdd }: Props) {
       <button type="submit" className="add-submit" disabled={working}>
         {working ? 'Adding…' : 'Add transaction'}
       </button>
+
+      {showModal && (
+        <NewCategoryModal
+          existing={categories}
+          onSave={handleAddCategory}
+          onClose={() => setShowModal(false)}
+        />
+      )}
     </form>
   );
 }

@@ -26,7 +26,7 @@ export function SignIn({ onSignedIn }: Props) {
     <div className="signin-wrap">
       <div className="signin-card">
         <div className="signin-logo">
-          <span className="signin-logo-text">Budgie</span>
+          <span className="signin-logo-text">Budgit</span>
           <span className="signin-logo-line" />
         </div>
         <h1 className="signin-h1">Budget on top of your sheet.</h1>
