@@ -914,6 +914,113 @@ input, button, textarea, select {
 }
 .add-amt-input[type='number'] { -moz-appearance: textfield; }
 
+/* AI parse tools — bottom-right of the amount card */
+.add-amt-tools {
+  position: absolute;
+  bottom: 10px;
+  right: 12px;
+  display: flex;
+  gap: 4px;
+}
+.amt-tool {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink3);
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.amt-tool:hover:not(:disabled) {
+  color: var(--ink2);
+  border-color: var(--ink3);
+  background: var(--card-inner, rgba(0, 0, 0, 0.02));
+}
+.amt-tool:disabled { cursor: default; opacity: 0.6; }
+.amt-tool svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.amt-tool.busy { color: var(--ink2); border-color: var(--ink3); }
+
+@keyframes amt-spin {
+  to { transform: rotate(360deg); }
+}
+.amt-tool-spin {
+  transform-origin: 50% 50%;
+  animation: amt-spin 0.7s linear infinite;
+}
+
+/* Inline textarea popover anchored under the amount card */
+.amt-textpop {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -4px;
+  transform: translateY(100%);
+  background: var(--card);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: var(--shadow-paper);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: paper-rise var(--dur-base) var(--ease-out) both;
+}
+.amt-textpop-input {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink);
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 8px 10px;
+  resize: vertical;
+  outline: none;
+}
+.amt-textpop-input:focus { border-color: var(--ink3); }
+.amt-textpop-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.amt-textpop-cancel,
+.amt-textpop-go {
+  font-family: var(--sans);
+  font-size: 13px;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  border: 1px solid var(--hair);
+  background: transparent;
+  color: var(--ink2);
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.amt-textpop-cancel:hover:not(:disabled) { color: var(--ink); }
+.amt-textpop-go {
+  background: var(--ink);
+  color: var(--paper, #fff);
+  border-color: var(--ink);
+}
+.amt-textpop-go:disabled,
+.amt-textpop-cancel:disabled { opacity: 0.5; cursor: default; }
+
 .add-row {
   background: var(--card);
   border: 1px solid var(--hair);
@@ -2179,6 +2286,94 @@ input, button, textarea, select {
 .edit-delete:active:not(:disabled) {
   transform: scale(0.98);
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   Parse-review modal (multi-tx confirmation)
+   ════════════════════════════════════════════════════════════════════ */
+.parse-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.parse-row {
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.parse-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.parse-row-currency {
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--ink2);
+}
+.parse-row-amt {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 400;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  width: 90px;
+  letter-spacing: -0.02em;
+}
+.parse-row-amt::-webkit-outer-spin-button,
+.parse-row-amt::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.parse-row-amt[type='number'] { -moz-appearance: textfield; }
+.parse-row-date {
+  font-family: var(--sans);
+  font-size: 13px;
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 4px 8px;
+  color: var(--ink2);
+  outline: none;
+}
+.parse-row-x {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--hair);
+  background: transparent;
+  color: var(--ink3);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.parse-row-x:hover { color: var(--ink); border-color: var(--ink3); }
+.parse-row-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.parse-row-note {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 13px;
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 6px 10px;
+  color: var(--ink);
+  outline: none;
+}
+.parse-row-note:focus { border-color: var(--ink3); }
 
 /* ════════════════════════════════════════════════════════════════════
    Reduced-motion users

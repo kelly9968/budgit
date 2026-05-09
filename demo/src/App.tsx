@@ -294,6 +294,7 @@ function Main({
               <Add
                 categories={categories}
                 onAdd={handleAdd}
+                onBulkAdd={handleBulkAdd}
                 onAddCategory={handleAddCategory}
               />
             )}
