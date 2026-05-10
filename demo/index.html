@@ -13,6 +13,35 @@
 </head>
 <body>
 <div id="root"></div>
+<!-- Static legal links — present in the raw HTML so OAuth verification and
+     other crawlers can find them before the SPA boots. -->
+<nav id="static-legal" aria-label="Legal">
+  <a href="/privacy.html" rel="noopener">Privacy Policy</a>
+  <span aria-hidden="true">·</span>
+  <a href="/terms.html" rel="noopener">Terms</a>
+</nav>
+<style>
+  #static-legal {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    right: 12px;
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: #999;
+    z-index: 9999;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  #static-legal a {
+    color: inherit;
+    text-decoration: none;
+    pointer-events: auto;
+    padding: 2px 4px;
+  }
+  #static-legal a:hover { color: #333; text-decoration: underline; }
+  #static-legal span { padding: 0 2px; opacity: 0.5; }
+</style>
 <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
