@@ -186,7 +186,7 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
               className="amt-textpop-input"
               value={parseText}
               onChange={(e) => setParseText(e.target.value)}
-              placeholder="e.g. coffee 4.50 yesterday, lunch 12 today, gas 38 monday"
+              placeholder="Include any details you want — date, notes, items, prices — and we'll separate it out into individual transactions."
               rows={4}
               autoFocus
               onKeyDown={(e) => {
@@ -315,17 +315,19 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
         </div>
       )}
 
-      <div className="add-note">
-        <span className="add-note-ico" style={{ background: selectedCat.color }}>📝</span>
-        <input
-          className="add-note-input"
-          type="text"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Add a note (optional)"
-          maxLength={80}
-        />
-      </div>
+      {mode !== 'text' && (
+        <div className="add-note">
+          <span className="add-note-ico" style={{ background: selectedCat.color }}>📝</span>
+          <input
+            className="add-note-input"
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Add a note (optional)"
+            maxLength={80}
+          />
+        </div>
+      )}
 
       {error && <div className="signin-error">{error}</div>}
       {flash && <div className="add-flash">{flash}</div>}
