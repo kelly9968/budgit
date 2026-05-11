@@ -283,7 +283,6 @@ input, button, textarea, select {
 .signin-logo {
   display: flex;
   flex-direction: column;
-  gap: 5px;
   margin-bottom: var(--s-6);
   width: fit-content;
 }
@@ -292,12 +291,6 @@ input, button, textarea, select {
   font-size: 24px;
   letter-spacing: -0.5px;
   line-height: 1;
-}
-.signin-logo-line {
-  height: 2px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--red), var(--blue), var(--green));
-  width: 56px;
 }
 
 .signin-h1 {
@@ -685,15 +678,11 @@ input, button, textarea, select {
   z-index: 10;
 }
 .app-logo {
-  display: grid;
-  grid-template-columns: auto auto;
-  grid-template-rows: auto auto;
+  display: flex;
   align-items: center;
-  column-gap: 8px;
-  row-gap: 3px;
+  gap: 8px;
 }
 .app-logo-mark {
-  grid-row: 1 / span 2;
   width: 32px;
   height: 32px;
   object-fit: contain;
@@ -704,12 +693,6 @@ input, button, textarea, select {
   font-size: 20px;
   letter-spacing: -0.02em;
   line-height: 1;
-}
-.app-logo-line {
-  height: 2px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--red), var(--blue), var(--green));
-  width: 100%;
 }
 .app-user {
   position: relative;

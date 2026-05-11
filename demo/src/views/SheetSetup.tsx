@@ -46,8 +46,7 @@ export function SheetSetup({ onReady }: Props) {
     <div className="setup-wrap">
       <div className="setup-card">
         <div className="signin-logo">
-          <span className="signin-logo-text">Budgie</span>
-          <span className="signin-logo-line" />
+          <span className="signin-logo-text">budgie</span>
         </div>
         <h1 className="setup-h1">Where should we track?</h1>
         <p className="setup-p">

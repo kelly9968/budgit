@@ -320,8 +320,7 @@ function Main({
             className="app-logo-mark"
             aria-hidden="true"
           />
-          <span className="app-logo-text">Budgie</span>
-          <span className="app-logo-line" />
+          <span className="app-logo-text">budgie</span>
         </div>
         <div className="app-user" ref={userMenuRef}>
           <button
@@ -459,6 +458,7 @@ function Main({
             categories={categories}
             onSave={handleEditSave}
             onDelete={handleEditDelete}
+            onAddCategory={handleAddCategory}
             onClose={() => setEditingTx(null)}
           />
         )}

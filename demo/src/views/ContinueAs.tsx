@@ -42,8 +42,7 @@ export function ContinueAs({ profile, onSignedIn, onUseDifferent }: Props) {
           aria-hidden="true"
         />
         <div className="signin-logo">
-          <span className="signin-logo-text">Budgie</span>
-          <span className="signin-logo-line" />
+          <span className="signin-logo-text">budgie</span>
         </div>
 
         <button

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getCategory, type Category } from '../lib/categories';
+import { NewCategoryModal } from './NewCategoryModal';
 import type { Transaction } from '../lib/types';
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
   categories: Category[];
   onSave: (next: Transaction) => Promise<void>;
   onDelete: (tx: Transaction) => Promise<void>;
+  onAddCategory: (cat: Category) => Promise<void>;
   onClose: () => void;
 };
 
@@ -16,6 +18,7 @@ export function EditTransactionModal({
   categories,
   onSave,
   onDelete,
+  onAddCategory,
   onClose,
 }: Props) {
   const [date, setDate] = useState(tx.date);
@@ -25,6 +28,13 @@ export function EditTransactionModal({
   const [working, setWorking] = useState<'save' | 'delete' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showNewCat, setShowNewCat] = useState(false);
+
+  const handleAddCategory = async (newCat: Category) => {
+    await onAddCategory(newCat);
+    setCat(newCat.name);
+    setShowNewCat(false);
+  };
 
   const selectedCat = getCategory(cat, categories);
 
@@ -112,6 +122,14 @@ export function EditTransactionModal({
                 <span className="add-cat-name">{c.name}</span>
               </button>
             ))}
+            <button
+              type="button"
+              className="add-cat add-cat-new"
+              onClick={() => setShowNewCat(true)}
+            >
+              <span className="add-cat-ico">+</span>
+              <span className="add-cat-name">New</span>
+            </button>
           </div>
         </div>
 
@@ -164,6 +182,14 @@ export function EditTransactionModal({
             {working === 'save' ? 'Saving…' : 'Save'}
           </button>
         </div>
+
+        {showNewCat && (
+          <NewCategoryModal
+            existing={categories}
+            onSave={handleAddCategory}
+            onClose={() => setShowNewCat(false)}
+          />
+        )}
       </div>
     </div>,
     document.body,

@@ -36,12 +36,11 @@ export function SignIn({ onSignedIn }: Props) {
           aria-hidden="true"
         />
         <div className="signin-logo">
-          <span className="signin-logo-text">Budgie</span>
-          <span className="signin-logo-line" />
+          <span className="signin-logo-text">budgie</span>
         </div>
-        <h1 className="signin-h1">Budgie helps.</h1>
+        <h1 className="signin-h1">budgie helps.</h1>
         <p className="signin-p">
-          <strong>Budgie</strong> is a free, browser-only budgeting app that
+          <strong>Budgie</strong> is a browser-only budgeting app that
           keeps your transactions in <em>your own</em> Google Sheet. Track
           variable spending, see daily and end-of-month forecasts, and catch
           overspend early &mdash; without sending your data to anyone but
