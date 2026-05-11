@@ -1499,6 +1499,48 @@ input, button, textarea, select {
   overflow: hidden;
   box-shadow: var(--shadow-paper);
 }
+
+/* Swipe-to-reveal-delete shell. The action button sits absolute under
+   the row content; sliding the content left exposes it. */
+.tx-row-wrap {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--hair);
+}
+.tx-row-wrap:last-child { border-bottom: none; }
+.tx-row-content {
+  background: var(--card);
+  position: relative;
+  z-index: 1;
+  transition: transform 220ms var(--ease-out);
+  border-bottom: none !important;
+  will-change: transform;
+}
+.tx-row-wrap.open .tx-row-content {
+  transform: translateX(-88px);
+}
+.tx-row-delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  z-index: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.tx-row-delete:disabled { opacity: 0.6; cursor: default; }
+
 .tx-row {
   display: flex;
   align-items: center;

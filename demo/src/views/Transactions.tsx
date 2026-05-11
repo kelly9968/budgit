@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { getCategory, type Category } from '../lib/categories';
 import { fmtUSD } from '../lib/budget';
+import { useSwipe } from '../lib/swipe';
 import type { Transaction } from '../lib/types';
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
   categories: Category[];
   loading: boolean;
   onSelect: (tx: Transaction) => void;
+  onDelete: (tx: Transaction) => Promise<void>;
 };
 
 const fDay = (iso: string) => {
@@ -21,9 +23,12 @@ const fDay = (iso: string) => {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-export function Transactions({ txns, categories, loading, onSelect }: Props) {
+export function Transactions({ txns, categories, loading, onSelect, onDelete }: Props) {
   const [query, setQuery] = useState('');
   const [catFilter, setCatFilter] = useState<string | null>(null);
+  // Row id (composed of date+row) currently revealing its delete
+  // action. Only one row open at a time — like iOS Mail.
+  const [openRowId, setOpenRowId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -140,24 +145,18 @@ export function Transactions({ txns, categories, loading, onSelect }: Props) {
           <div className="tx-day">{day}</div>
           <div className="tx-grp">
             {items.map((t, i) => {
-              const c = getCategory(t.cat, categories);
-              const editable = t._row !== undefined;
+              const id = `${t.date}-${t._row ?? `s${i}`}`;
               return (
-                <button
-                  type="button"
-                  className={`tx-row ${editable ? '' : 'tx-row-static'}`}
-                  key={`${t.date}-${i}`}
-                  onClick={() => editable && onSelect(t)}
-                  disabled={!editable}
-                  aria-label={editable ? `Edit ${t.cat} ${fmtUSD(t.amount)}` : undefined}
-                >
-                  <div className="tx-bdg" style={{ background: c.color }}>{c.icon}</div>
-                  <div className="tx-info">
-                    <span className="tx-cat">{t.cat}</span>
-                    {t.note && <span className="tx-note">{t.note}</span>}
-                  </div>
-                  <div className="tx-amt">-{fmtUSD(t.amount)}</div>
-                </button>
+                <TxRow
+                  key={id}
+                  tx={t}
+                  category={getCategory(t.cat, categories)}
+                  isOpen={openRowId === id}
+                  onOpen={() => setOpenRowId(id)}
+                  onClose={() => setOpenRowId(null)}
+                  onSelect={onSelect}
+                  onDelete={onDelete}
+                />
               );
             })}
           </div>
@@ -173,5 +172,87 @@ function SearchIcon() {
       <circle cx="10" cy="10" r="5.5" />
       <path d="M14 14 L18 18" />
     </svg>
+  );
+}
+
+function TxRow({
+  tx,
+  category,
+  isOpen,
+  onOpen,
+  onClose,
+  onSelect,
+  onDelete,
+}: {
+  tx: Transaction;
+  category: Category;
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onSelect: (tx: Transaction) => void;
+  onDelete: (tx: Transaction) => Promise<void>;
+}) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const editable = tx._row !== undefined;
+
+  useSwipe(wrapRef, {
+    onLeft: () => editable && onOpen(),
+    onRight: () => onClose(),
+  });
+
+  const handleClick = () => {
+    if (isOpen) {
+      onClose();
+      return;
+    }
+    if (editable) onSelect(tx);
+  };
+
+  const handleDelete = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await onDelete(tx);
+    } catch {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div
+      ref={wrapRef}
+      className={`tx-row-wrap ${isOpen ? 'open' : ''}`}
+    >
+      <button
+        type="button"
+        className={`tx-row tx-row-content ${editable ? '' : 'tx-row-static'}`}
+        onClick={handleClick}
+        disabled={!editable && !isOpen}
+        aria-label={editable ? `${tx.cat} ${fmtUSD(tx.amount)}` : undefined}
+      >
+        <div className="tx-bdg" style={{ background: category.color }}>{category.icon}</div>
+        <div className="tx-info">
+          <span className="tx-cat">{tx.cat}</span>
+          {tx.note && <span className="tx-note">{tx.note}</span>}
+        </div>
+        <div className="tx-amt">-{fmtUSD(tx.amount)}</div>
+      </button>
+      {editable && (
+        <button
+          type="button"
+          className="tx-row-delete"
+          onClick={handleDelete}
+          disabled={deleting}
+          aria-label={`Delete ${tx.cat} ${fmtUSD(tx.amount)}`}
+          // Tucked behind the row content; only reachable when isOpen.
+          // tabIndex switches with state so keyboard users skip it
+          // when it's not visible.
+          tabIndex={isOpen ? 0 : -1}
+        >
+          {deleting ? '…' : 'Delete'}
+        </button>
+      )}
+    </div>
   );
 }

@@ -7,6 +7,7 @@ import { Dashboard } from './views/Dashboard';
 import { DemoData } from './views/DemoData';
 import { EditTransactionModal } from './views/EditTransactionModal';
 import { readCachedToken, signOut, silentSignIn } from './api/gis';
+import { useSwipe } from './lib/swipe';
 import {
   addTransaction,
   addTransactionsBulk,
@@ -150,6 +151,22 @@ function Main({
   const [sheetMenuOpen, setSheetMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const sheetMenuRef = useRef<HTMLDivElement | null>(null);
+  const tabbarRef = useRef<HTMLElement | null>(null);
+
+  // Swipe across the tab bar to move between tabs. Order excludes
+  // 'demo' in production; the tab itself is dev-only.
+  const tabOrder: TabId[] = import.meta.env.DEV
+    ? ['dash', 'add', 'tx', 'demo']
+    : ['dash', 'add', 'tx'];
+  const goTab = (delta: number) => {
+    const i = tabOrder.indexOf(tab);
+    const next = tabOrder[i + delta];
+    if (next) setTab(next);
+  };
+  useSwipe(tabbarRef, {
+    onLeft: () => goTab(1),
+    onRight: () => goTab(-1),
+  });
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [firstLoadDone, setFirstLoadDone] = useState(false);
@@ -426,6 +443,7 @@ function Main({
               categories={categories}
               loading={loading}
               onSelect={setEditingTx}
+              onDelete={handleEditDelete}
             />
           ) : (
             <LoadingSplash />
@@ -446,7 +464,7 @@ function Main({
         )}
       </main>
 
-      <nav className="tabbar">
+      <nav className="tabbar" ref={tabbarRef}>
         <TabBtn id="dash" current={tab} setTab={setTab} icon={<DashIcon />} label="Dashboard" />
         <TabBtn id="add" current={tab} setTab={setTab} icon={<AddIcon />} label="Add" />
         <TabBtn id="tx" current={tab} setTab={setTab} icon={<HistoryIcon />} label="History" />

@@ -7,6 +7,7 @@ import {
   recoveryDays,
 } from '../lib/budget';
 import { getCategory, type Category } from '../lib/categories';
+import { useSwipe } from '../lib/swipe';
 import type { Transaction } from '../lib/types';
 
 type SelectedMonth = { year: number; month: number };
@@ -110,8 +111,16 @@ export function Dashboard({ txns, budget, categories, onBudgetChange }: Props) {
     setSel({ year: next.getFullYear(), month: next.getMonth() });
   };
 
+  // Swipe across the dashboard to nav months. Threshold is set high
+  // enough to coexist with vertical scrolling on long content.
+  const dashRef = useRef<HTMLDivElement | null>(null);
+  useSwipe(dashRef, {
+    onLeft: () => navMonth(1),
+    onRight: () => navMonth(-1),
+  });
+
   return (
-    <div className="dash">
+    <div className="dash" ref={dashRef}>
       <div className="dash-monthnav">
         <button
           type="button"

@@ -3,6 +3,7 @@ import { getCategory, type Category } from '../lib/categories';
 import { NewCategoryModal } from './NewCategoryModal';
 import { ParseReviewModal } from './ParseReviewModal';
 import { parseTransaction, type ParsedTx } from '../api/openrouter';
+import { useSwipe } from '../lib/swipe';
 import type { Transaction } from '../lib/types';
 
 type Props = {
@@ -156,8 +157,17 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
     setTimeout(() => setFlash(null), 2200);
   };
 
+  // Swipe across the form to toggle between the numeric $ input and
+  // the wand text parser. Camera + file are actions, not modes — they
+  // intentionally aren't part of the cycle.
+  const formRef = useRef<HTMLFormElement | null>(null);
+  useSwipe(formRef, {
+    onLeft: () => setMode((m) => (m === 'amount' ? 'text' : 'amount')),
+    onRight: () => setMode((m) => (m === 'amount' ? 'text' : 'amount')),
+  });
+
   return (
-    <form className="add" onSubmit={handleSubmit}>
+    <form className="add" onSubmit={handleSubmit} ref={formRef}>
       <div className={`add-amt-hero mode-${mode}`}>
         <div className="add-amt-lbl">
           {mode === 'text' ? 'Describe' : 'Amount'}
