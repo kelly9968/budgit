@@ -8,6 +8,10 @@ type Props = {
   onUseDifferent: () => void;
 };
 
+// Coin flip per page load — same icon for the whole session,
+// reshuffled on refresh. Matches the SignIn / header draws.
+const RELOGIN_ICON = Math.random() < 0.5 ? '/icon_1.png' : '/icon_2.png';
+
 // Shown on reload when we have a cached profile but no live access token.
 // The interactive sign-in popup is fast (often auto-dismisses if Google
 // still has consent) and works in browsers that block third-party cookies
@@ -31,6 +35,12 @@ export function ContinueAs({ profile, onSignedIn, onUseDifferent }: Props) {
   return (
     <div className="signin-wrap">
       <div className="signin-card continue-as">
+        <img
+          src={RELOGIN_ICON}
+          alt=""
+          className="signin-mark"
+          aria-hidden="true"
+        />
         <div className="signin-logo">
           <span className="signin-logo-text">Budgie</span>
           <span className="signin-logo-line" />

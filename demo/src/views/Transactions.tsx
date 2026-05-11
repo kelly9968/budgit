@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { getCategory, type Category } from '../lib/categories';
 import { fmtUSD } from '../lib/budget';
 import type { Transaction } from '../lib/types';
@@ -22,8 +22,32 @@ const fDay = (iso: string) => {
 };
 
 export function Transactions({ txns, categories, loading, onSelect }: Props) {
+  const [query, setQuery] = useState('');
+  const [catFilter, setCatFilter] = useState<string | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return txns.filter((t) => {
+      if (catFilter && t.cat !== catFilter) return false;
+      if (!q) return true;
+      // Match against note, category, amount, and the rendered day
+      // label. Notes are the headline use case but date/cat hits are
+      // useful too (e.g. "groceries" or "yesterday").
+      const hay = [
+        t.note ?? '',
+        t.cat,
+        t.amount.toFixed(2),
+        fDay(t.date),
+        t.date,
+      ]
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [txns, query, catFilter]);
+
   const grouped = useMemo(() => {
-    const sorted = [...txns].sort((a, b) => b.date.localeCompare(a.date));
+    const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
     const map = new Map<string, Transaction[]>();
     for (const t of sorted) {
       const k = fDay(t.date);
@@ -32,18 +56,84 @@ export function Transactions({ txns, categories, loading, onSelect }: Props) {
       map.set(k, list);
     }
     return Array.from(map.entries());
-  }, [txns]);
+  }, [filtered]);
 
-  const total = txns.reduce((s, t) => s + t.amount, 0);
+  const total = filtered.reduce((s, t) => s + t.amount, 0);
+  const isFiltered = query.trim() !== '' || catFilter !== null;
+  const headLabel = isFiltered
+    ? `Filtered · ${filtered.length}${filtered.length !== txns.length ? ` of ${txns.length}` : ''}`
+    : `All transactions · ${txns.length}`;
 
   return (
     <div className="tx">
+      <div className="tx-controls">
+        <div className="tx-search-wrap">
+          <SearchIcon />
+          <input
+            className="tx-search"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search notes, categories, amounts…"
+            aria-label="Search transactions"
+          />
+          {query && (
+            <button
+              type="button"
+              className="tx-search-clear"
+              onClick={() => setQuery('')}
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <div className="tx-cat-filter" role="group" aria-label="Filter by category">
+          <button
+            type="button"
+            className={`tx-cat-chip ${catFilter === null ? 'sel' : ''}`}
+            onClick={() => setCatFilter(null)}
+          >
+            All
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c.name}
+              type="button"
+              className={`tx-cat-chip ${catFilter === c.name ? 'sel' : ''}`}
+              style={catFilter === c.name ? { background: c.color } : undefined}
+              onClick={() =>
+                setCatFilter((cur) => (cur === c.name ? null : c.name))
+              }
+            >
+              <span className="tx-cat-chip-ico">{c.icon}</span>
+              <span>{c.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="tx-head">
-        <span>All transactions · {txns.length}</span>
+        <span>{headLabel}</span>
         <strong>{fmtUSD(total)}</strong>
       </div>
       {txns.length === 0 && !loading && (
         <div className="tx-empty">No transactions yet. Add one to get started.</div>
+      )}
+      {txns.length > 0 && filtered.length === 0 && (
+        <div className="tx-empty">
+          No matches.{' '}
+          <button
+            type="button"
+            className="tx-empty-reset"
+            onClick={() => {
+              setQuery('');
+              setCatFilter(null);
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
       )}
       {grouped.map(([day, items]) => (
         <div className="tx-sec" key={day}>
@@ -74,5 +164,14 @@ export function Transactions({ txns, categories, loading, onSelect }: Props) {
         </div>
       ))}
     </div>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 22 22" aria-hidden="true" className="tx-search-ico">
+      <circle cx="10" cy="10" r="5.5" />
+      <path d="M14 14 L18 18" />
+    </svg>
   );
 }

@@ -1314,6 +1314,113 @@ input, button, textarea, select {
 /* ════════════════════════════════════════════════════════════════════
    Transactions — editorial day-grouped list
    ════════════════════════════════════════════════════════════════════ */
+/* Search + category filter row above the transaction list. The chip
+   row scrolls horizontally on narrow widths so all categories stay
+   reachable without wrapping into a tall block. */
+.tx-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.tx-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.tx-search-ico {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--ink3);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.tx-search {
+  flex: 1;
+  font-family: var(--sans);
+  font-size: 14px;
+  background: var(--card);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  padding: 9px 36px 9px 36px;
+  color: var(--ink);
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
+  appearance: none;
+  -webkit-appearance: none;
+}
+.tx-search::-webkit-search-decoration,
+.tx-search::-webkit-search-cancel-button,
+.tx-search::-webkit-search-results-button,
+.tx-search::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+}
+.tx-search:focus { border-color: var(--ink2); background: var(--card); }
+.tx-search::placeholder { color: var(--ink3); }
+.tx-search-clear {
+  position: absolute;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  color: var(--ink3);
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 1;
+}
+.tx-search-clear:hover { color: var(--ink); background: var(--surf); }
+
+.tx-cat-filter {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0 4px;
+  scrollbar-width: none;
+}
+.tx-cat-filter::-webkit-scrollbar { display: none; }
+.tx-cat-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--card);
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
+}
+.tx-cat-chip:hover { color: var(--ink); border-color: var(--hair-strong); }
+.tx-cat-chip.sel {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.tx-cat-chip-ico { font-size: 13px; line-height: 1; }
+.tx-empty-reset {
+  background: none;
+  border: none;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  padding: 0;
+  margin-left: 4px;
+}
+
 .tx-head {
   display: flex;
   justify-content: space-between;
