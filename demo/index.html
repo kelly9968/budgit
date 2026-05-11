@@ -15,26 +15,40 @@
 </head>
 <body>
 <div id="root"></div>
-<!-- Static legal links — kept in raw HTML so OAuth verification crawlers
-     find them before the SPA boots. The SignIn screen already shows a
-     visible privacy/terms link for human reviewers, so this nav is
-     visually hidden (off-screen) to avoid overlapping the in-app header. -->
-<nav id="static-legal" aria-label="Legal">
+<!-- Static legal links — rendered in raw HTML so they're discoverable
+     to OAuth verification crawlers without depending on JS. Positioned
+     as a small fixed footer at the bottom-right of the viewport so it
+     stays visible on the home page without overlapping interactive
+     SPA elements (the tab bar lives at the bottom-center). -->
+<footer id="static-legal" aria-label="Legal">
   <a href="/privacy.html" rel="noopener">Privacy Policy</a>
   <span aria-hidden="true">·</span>
   <a href="/terms.html" rel="noopener">Terms</a>
-</nav>
+</footer>
 <style>
   #static-legal {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
+    position: fixed;
+    right: 10px;
+    bottom: 6px;
+    z-index: 1;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 10px;
+    color: rgba(0, 0, 0, 0.45);
+    pointer-events: auto;
+  }
+  #static-legal a {
+    color: rgba(0, 0, 0, 0.55);
+    text-decoration: underline;
+    margin: 0 3px;
+  }
+  #static-legal a:hover { color: rgba(0, 0, 0, 0.85); }
+  /* Hide once the SPA has mounted — the SignIn / app footer carry
+     the same links in a richer presentation. The nav is rendered to
+     the DOM either way so crawlers fetching raw HTML see it. */
+  body:has(#root .signin-wrap) #static-legal,
+  body:has(#root .app-shell) #static-legal,
+  body:has(#root .setup-wrap) #static-legal {
+    display: none;
   }
 </style>
 <script type="module" src="/src/main.tsx"></script>
