@@ -1508,15 +1508,19 @@ input, button, textarea, select {
   border-bottom: 1px solid var(--hair);
 }
 .tx-row-wrap:last-child { border-bottom: none; }
-.tx-row-content {
+/* Bumped to .tx-row-wrap > .tx-row-content so this beats the
+   later-declared .tx-row { background: transparent } rule on
+   specificity — without this, the red delete button bleeds
+   through every row. */
+.tx-row-wrap > .tx-row-content {
   background: var(--card);
   position: relative;
   z-index: 1;
   transition: transform 220ms var(--ease-out);
-  border-bottom: none !important;
+  border-bottom: none;
   will-change: transform;
 }
-.tx-row-wrap.open .tx-row-content {
+.tx-row-wrap.open > .tx-row-content {
   transform: translateX(-88px);
 }
 .tx-row-delete {
