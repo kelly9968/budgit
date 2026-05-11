@@ -1,4 +1,5 @@
 import type { GoogleProfile } from '../lib/types';
+import { clearToken, loadToken, saveToken } from '../lib/storage';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
 
@@ -40,7 +41,9 @@ export function waitForGis(): Promise<void> {
 
 // ── Token client (singleton) ──────────────────────────────────────────
 type CachedToken = { token: string; expiresAt: number };
-let cachedToken: CachedToken | null = null;
+// Seed the in-memory cache from localStorage so refreshes within the
+// token's TTL skip the sign-in flow entirely.
+let cachedToken: CachedToken | null = loadToken();
 let tokenClient: google.accounts.oauth2.TokenClient | null = null;
 
 function ensureTokenClient(): google.accounts.oauth2.TokenClient {
@@ -73,6 +76,7 @@ export async function requestAccessToken(
         // refresh 60s early to avoid mid-request 401s
         expiresAt: Date.now() + (resp.expires_in - 60) * 1000,
       };
+      saveToken(cachedToken);
       resolve(resp.access_token);
     };
     c.error_callback = (err) =>
@@ -134,8 +138,18 @@ export function signOut(): void {
     google.accounts.oauth2.revoke(cachedToken.token);
   }
   cachedToken = null;
+  clearToken();
 }
 
 export function clearAccessToken(): void {
   cachedToken = null;
+  clearToken();
+}
+
+// Read the current cached token (memory + localStorage). Returns null
+// when expired or absent. Used by the App on mount to decide whether
+// it can skip the sign-in flow.
+export function readCachedToken(): CachedToken | null {
+  if (cachedToken && cachedToken.expiresAt > Date.now()) return cachedToken;
+  return null;
 }

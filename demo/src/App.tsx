@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SignIn } from './views/SignIn';
-import { ContinueAs } from './views/ContinueAs';
 import { SheetSetup } from './views/SheetSetup';
 import { Add } from './views/Add';
 import { Transactions } from './views/Transactions';
 import { Dashboard } from './views/Dashboard';
 import { DemoData } from './views/DemoData';
 import { EditTransactionModal } from './views/EditTransactionModal';
-import { signOut, silentSignIn } from './api/gis';
+import { readCachedToken, signOut, silentSignIn } from './api/gis';
 import {
   addTransaction,
   addTransactionsBulk,
@@ -45,23 +44,28 @@ type TabId = 'dash' | 'add' | 'tx' | 'demo';
 const HEADER_ICON = Math.random() < 0.5 ? '/icon_1.png' : '/icon_2.png';
 
 export function App() {
-  const [auth, setAuth] = useState<AuthState | null>(null);
+  // Seed auth synchronously from the persisted token + profile so a
+  // refresh within the token's TTL (~1 hour) lands the user straight in
+  // the app — no flash of sign-in, no extra click.
+  const [auth, setAuth] = useState<AuthState | null>(() => {
+    const t = readCachedToken();
+    const p = loadLastProfile();
+    if (t && p) return { profile: p, accessToken: t.token };
+    return null;
+  });
   const [config, setConfig] = useState<LocalConfig | null>(null);
-  // Profile cached from a previous session. If present and no live auth,
-  // we show ContinueAs (one-click re-auth) instead of the full SignIn.
-  const [cachedProfile, setCachedProfile] = useState<GoogleProfile | null>(
-    () => loadLastProfile(),
-  );
-  // Tracks the silent-reauth attempt that runs once on mount when a cached
-  // profile exists. While in flight we render nothing — flashing the
-  // ContinueAs card and then ripping it away on success is jarring.
+  // Captured once on mount so the silent-reauth effect dep stays stable.
+  const [cachedProfile] = useState<GoogleProfile | null>(() => loadLastProfile());
+  // Tracks the silent-reauth attempt that runs once on mount when the
+  // persisted token is missing/expired but a cached profile exists.
+  // While in flight we render nothing — flashing SignIn and then
+  // ripping it away on success is jarring.
   const [silentTried, setSilentTried] = useState(false);
 
   const handleSignedIn = useCallback(
     (profile: GoogleProfile, accessToken: string) => {
       saveLastProfile(profile);
       setAuth({ profile, accessToken });
-      setCachedProfile(profile);
     },
     [],
   );
@@ -71,9 +75,10 @@ export function App() {
     setConfig(loadConfig(auth.profile.sub));
   }, [auth]);
 
-  // Try a silent reauth on first paint when we have a cached profile.
-  // Succeeds when Google still has consent — most refreshes go straight
-  // through to the app without any user-facing sign-in step.
+  // When the persisted token is gone but we still know who the user
+  // was, try a silent reauth once. Succeeds when Google still has
+  // consent — most refreshes past the token TTL go straight through
+  // without any user-facing sign-in step.
   useEffect(() => {
     if (auth || silentTried || !cachedProfile) return;
     let cancelled = false;
@@ -91,21 +96,10 @@ export function App() {
   }, [auth, silentTried, cachedProfile, handleSignedIn]);
 
   if (!auth) {
-    if (cachedProfile) {
-      // Hold the splash while the silent attempt is in flight.
-      if (!silentTried) {
-        return <LoadingSplash />;
-      }
-      return (
-        <ContinueAs
-          profile={cachedProfile}
-          onSignedIn={handleSignedIn}
-          onUseDifferent={() => {
-            clearLastProfile();
-            setCachedProfile(null);
-          }}
-        />
-      );
+    // Hold the splash while the silent attempt is in flight so we
+    // don't flash the SignIn card in the success case.
+    if (cachedProfile && !silentTried) {
+      return <LoadingSplash />;
     }
     return <SignIn onSignedIn={handleSignedIn} />;
   }
@@ -135,7 +129,6 @@ export function App() {
         clearLastProfile();
         setAuth(null);
         setConfig(null);
-        setCachedProfile(null);
       }}
     />
   );
