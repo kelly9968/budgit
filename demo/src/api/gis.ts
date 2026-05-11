@@ -7,18 +7,17 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
 // consent popup gives us everything. This keeps the sign-in flow tied to a
 // single user gesture (avoids popup-blocker / gesture-context issues).
 //
-// Scope strategy: `drive.file` plus `spreadsheets`. `drive.file` alone
-// should cover everything per Google's reference docs, but in practice
-// some users hit "Request had insufficient authentication scopes" on
-// `spreadsheets.create`. Including `spreadsheets` is broader than ideal
-// (sensitive scope during OAuth verification) but eliminates the
-// failure mode without hurting the picker flow.
+// Scope strategy: `drive.file` only — non-sensitive, so the unverified-
+// app warning doesn't fire and verification doesn't need to gate user
+// sign-ins. authedFetch() in sheets.ts handles the rare 403
+// "insufficient scopes" case by clearing the cached token and forcing
+// a fresh consent prompt, which restores any drive.file grant that
+// somehow got pruned.
 export const SCOPES = [
   'openid',
   'email',
   'profile',
   'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/spreadsheets',
 ].join(' ');
 
 if (!CLIENT_ID) {
