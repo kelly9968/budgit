@@ -1,4 +1,4 @@
-import { getAccessToken } from './gis';
+import { clearAccessToken, getAccessToken, requestAccessToken } from './gis';
 import type { Transaction } from '../lib/types';
 import type { Category } from '../lib/categories';
 
@@ -10,7 +10,13 @@ export const HEADERS = ['Date', 'Amount', 'Note', 'Category', 'Sub'] as const;
 export const META_TAB = '@metadata';
 export const META_HEADERS = ['key', 'value'] as const;
 
-// ── Generic authed fetch with one silent retry on 401 ─────────────────
+// ── Generic authed fetch with retries for 401 + scope-403 ─────────────
+//
+// 401 → token expired or invalid; transparently fetch a new one.
+// 403 with "insufficient scopes" → the persisted token was issued
+// before the SCOPES list grew. Drop it and force a consent prompt so
+// the user re-grants with the current scope set; one-time friction
+// after a deploy that adds a scope.
 async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const token = await getAccessToken();
   const res = await fetch(`${BASE}${path}`, {
@@ -21,16 +27,33 @@ async function authedFetch(path: string, init: RequestInit = {}): Promise<Respon
       'Content-Type': 'application/json',
     },
   });
-  if (res.status !== 401) return res;
-  const fresh = await getAccessToken();
-  return fetch(`${BASE}${path}`, {
-    ...init,
-    headers: {
-      ...(init.headers || {}),
-      Authorization: `Bearer ${fresh}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  if (res.status === 401) {
+    const fresh = await getAccessToken();
+    return fetch(`${BASE}${path}`, {
+      ...init,
+      headers: {
+        ...(init.headers || {}),
+        Authorization: `Bearer ${fresh}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+  if (res.status === 403) {
+    const peek = await res.clone().text();
+    if (/insufficient.*scope/i.test(peek)) {
+      clearAccessToken();
+      const fresh = await requestAccessToken({ prompt: 'consent' });
+      return fetch(`${BASE}${path}`, {
+        ...init,
+        headers: {
+          ...(init.headers || {}),
+          Authorization: `Bearer ${fresh}`,
+          'Content-Type': 'application/json',
+        },
+      });
+    }
+  }
+  return res;
 }
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {

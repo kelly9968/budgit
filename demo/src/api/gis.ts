@@ -7,16 +7,18 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
 // consent popup gives us everything. This keeps the sign-in flow tied to a
 // single user gesture (avoids popup-blocker / gesture-context issues).
 //
-// Scope strategy: `drive.file` only — non-sensitive, lets us read/write
-// only spreadsheets the user explicitly picked via Google Picker or that
-// Budgit created via Sheets API. Sufficient for every operation in the
-// app. Avoids the broad `spreadsheets` scope (sensitive, triggers a
-// security questionnaire during OAuth verification).
+// Scope strategy: `drive.file` plus `spreadsheets`. `drive.file` alone
+// should cover everything per Google's reference docs, but in practice
+// some users hit "Request had insufficient authentication scopes" on
+// `spreadsheets.create`. Including `spreadsheets` is broader than ideal
+// (sensitive scope during OAuth verification) but eliminates the
+// failure mode without hurting the picker flow.
 export const SCOPES = [
   'openid',
   'email',
   'profile',
   'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/spreadsheets',
 ].join(' ');
 
 if (!CLIENT_ID) {
