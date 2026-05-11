@@ -98,7 +98,7 @@ async function callOpenRouter(
       Authorization: `Bearer ${assertKey()}`,
       'Content-Type': 'application/json',
       'HTTP-Referer': window.location.origin,
-      'X-Title': 'budgit',
+      'X-Title': 'budgie',
     },
     body: JSON.stringify({
       model,

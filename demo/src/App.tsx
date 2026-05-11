@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { SignIn } from './views/SignIn';
 import { ContinueAs } from './views/ContinueAs';
 import { SheetSetup } from './views/SheetSetup';
@@ -7,7 +7,7 @@ import { Transactions } from './views/Transactions';
 import { Dashboard } from './views/Dashboard';
 import { DemoData } from './views/DemoData';
 import { EditTransactionModal } from './views/EditTransactionModal';
-import { signOut } from './api/gis';
+import { signOut, silentSignIn } from './api/gis';
 import {
   addTransaction,
   addTransactionsBulk,
@@ -39,6 +39,11 @@ type AuthState = {
 
 type TabId = 'dash' | 'add' | 'tx' | 'demo';
 
+// One coin flip per page load — same icon for the whole SPA session,
+// reshuffled on refresh. Picked at module scope so a re-render of the
+// header doesn't trigger a new draw.
+const HEADER_ICON = Math.random() < 0.5 ? '/icon_1.png' : '/icon_2.png';
+
 export function App() {
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [config, setConfig] = useState<LocalConfig | null>(null);
@@ -47,6 +52,10 @@ export function App() {
   const [cachedProfile, setCachedProfile] = useState<GoogleProfile | null>(
     () => loadLastProfile(),
   );
+  // Tracks the silent-reauth attempt that runs once on mount when a cached
+  // profile exists. While in flight we render nothing — flashing the
+  // ContinueAs card and then ripping it away on success is jarring.
+  const [silentTried, setSilentTried] = useState(false);
 
   const handleSignedIn = useCallback(
     (profile: GoogleProfile, accessToken: string) => {
@@ -62,8 +71,31 @@ export function App() {
     setConfig(loadConfig(auth.profile.sub));
   }, [auth]);
 
+  // Try a silent reauth on first paint when we have a cached profile.
+  // Succeeds when Google still has consent — most refreshes go straight
+  // through to the app without any user-facing sign-in step.
+  useEffect(() => {
+    if (auth || silentTried || !cachedProfile) return;
+    let cancelled = false;
+    (async () => {
+      const result = await silentSignIn();
+      if (cancelled) return;
+      if (result) {
+        handleSignedIn(result.profile, result.accessToken);
+      }
+      setSilentTried(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth, silentTried, cachedProfile, handleSignedIn]);
+
   if (!auth) {
     if (cachedProfile) {
+      // Hold the splash while the silent attempt is in flight.
+      if (!silentTried) {
+        return <LoadingSplash />;
+      }
       return (
         <ContinueAs
           profile={cachedProfile}
@@ -120,7 +152,11 @@ function Main({
   onSwitchSheet: () => void;
   onSignOut: () => void;
 }) {
-  const [tab, setTab] = useState<TabId>('dash');
+  const [tab, setTab] = useState<TabId>('add');
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [sheetMenuOpen, setSheetMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const sheetMenuRef = useRef<HTMLDivElement | null>(null);
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [firstLoadDone, setFirstLoadDone] = useState(false);
@@ -169,6 +205,22 @@ function Main({
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Close either dropdown when the user clicks anywhere outside it.
+  useEffect(() => {
+    if (!userMenuOpen && !sheetMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (userMenuOpen && userMenuRef.current && !userMenuRef.current.contains(t)) {
+        setUserMenuOpen(false);
+      }
+      if (sheetMenuOpen && sheetMenuRef.current && !sheetMenuRef.current.contains(t)) {
+        setSheetMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [userMenuOpen, sheetMenuOpen]);
 
   const handleAdd = async (tx: Transaction) => {
     setTxns((prev) => [tx, ...prev]);
@@ -252,74 +304,152 @@ function Main({
     <div className="app-shell">
       <header className="app-header">
         <div className="app-logo">
-          <span className="app-logo-text">Budgit</span>
+          <img
+            src={HEADER_ICON}
+            alt=""
+            className="app-logo-mark"
+            aria-hidden="true"
+          />
+          <span className="app-logo-text">Budgie</span>
           <span className="app-logo-line" />
         </div>
-        <div className="app-user">
-          <button className="app-signout" onClick={refresh} disabled={loading}>
-            {loading ? '↻…' : '↻'}
+        <div className="app-user" ref={userMenuRef}>
+          <button
+            type="button"
+            className="app-avatar-btn"
+            onClick={() => setUserMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={userMenuOpen}
+            aria-label="Account menu"
+          >
+            {auth.profile.picture ? (
+              <img src={auth.profile.picture} alt="" className="app-avatar" />
+            ) : (
+              <span className="app-avatar app-avatar-fallback">
+                {auth.profile.name?.[0] ?? '?'}
+              </span>
+            )}
           </button>
-          <button className="app-signout" onClick={onSwitchSheet}>
-            Switch sheet
-          </button>
-          {auth.profile.picture && (
-            <img src={auth.profile.picture} alt="" className="app-avatar" />
+          {userMenuOpen && (
+            <div className="app-menu" role="menu">
+              <div className="app-menu-head">
+                <div className="app-menu-name">{auth.profile.name}</div>
+                <div className="app-menu-email">{auth.profile.email}</div>
+              </div>
+              <button
+                type="button"
+                className="app-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  onSignOut();
+                }}
+              >
+                Sign out
+              </button>
+            </div>
           )}
-          <button className="app-signout" onClick={onSignOut}>
-            Sign out
-          </button>
         </div>
       </header>
 
       <div className="app-meta">
-        <a href={sheetUrl(config.sheetId)} target="_blank" rel="noreferrer">
-          {config.sheetName ?? 'sheet'} ↗
-        </a>
+        <div className="app-meta-sheet" ref={sheetMenuRef}>
+          <button
+            type="button"
+            className="app-meta-trigger"
+            onClick={() => setSheetMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={sheetMenuOpen}
+          >
+            {config.sheetName ?? 'sheet'}
+            <ChevIcon />
+          </button>
+          {sheetMenuOpen && (
+            <div className="app-menu app-menu-sheet" role="menu">
+              <button
+                type="button"
+                className="app-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setSheetMenuOpen(false);
+                  refresh();
+                }}
+                disabled={loading}
+              >
+                {loading ? 'Refreshing…' : 'Refresh'}
+              </button>
+              <button
+                type="button"
+                className="app-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setSheetMenuOpen(false);
+                  onSwitchSheet();
+                }}
+              >
+                Switch sheet
+              </button>
+              <a
+                className="app-menu-item"
+                role="menuitem"
+                href={sheetUrl(config.sheetId)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setSheetMenuOpen(false)}
+              >
+                Open in Drive ↗
+              </a>
+            </div>
+          )}
+        </div>
         {error && <span className="app-meta-err">· {error}</span>}
       </div>
 
       <main className="app-main">
-        {!firstLoadDone ? (
-          <LoadingSplash />
-        ) : (
-          <>
-            {tab === 'dash' && (
-              <Dashboard
-                txns={txns}
-                budget={budget}
-                onBudgetChange={handleBudgetChange}
-              />
-            )}
-            {tab === 'add' && (
-              <Add
-                categories={categories}
-                onAdd={handleAdd}
-                onBulkAdd={handleBulkAdd}
-                onAddCategory={handleAddCategory}
-              />
-            )}
-            {tab === 'tx' && (
-              <Transactions
-                txns={txns}
-                categories={categories}
-                loading={loading}
-                onSelect={setEditingTx}
-              />
-            )}
-            {tab === 'demo' && import.meta.env.DEV && (
-              <DemoData categories={categories} onBulkAdd={handleBulkAdd} />
-            )}
+        {tab === 'add' && (
+          <Add
+            categories={categories}
+            onAdd={handleAdd}
+            onBulkAdd={handleBulkAdd}
+            onAddCategory={handleAddCategory}
+          />
+        )}
+        {tab === 'dash' && (
+          firstLoadDone ? (
+            <Dashboard
+              txns={txns}
+              budget={budget}
+              categories={categories}
+              onBudgetChange={handleBudgetChange}
+            />
+          ) : (
+            <LoadingSplash />
+          )
+        )}
+        {tab === 'tx' && (
+          firstLoadDone ? (
+            <Transactions
+              txns={txns}
+              categories={categories}
+              loading={loading}
+              onSelect={setEditingTx}
+            />
+          ) : (
+            <LoadingSplash />
+          )
+        )}
+        {tab === 'demo' && import.meta.env.DEV && (
+          <DemoData categories={categories} onBulkAdd={handleBulkAdd} />
+        )}
 
-            {editingTx && (
-              <EditTransactionModal
-                tx={editingTx}
-                categories={categories}
-                onSave={handleEditSave}
-                onDelete={handleEditDelete}
-                onClose={() => setEditingTx(null)}
-              />
-            )}
-          </>
+        {editingTx && (
+          <EditTransactionModal
+            tx={editingTx}
+            categories={categories}
+            onSave={handleEditSave}
+            onDelete={handleEditDelete}
+            onClose={() => setEditingTx(null)}
+          />
         )}
       </main>
 
@@ -417,6 +547,22 @@ function DemoIcon() {
   return (
     <svg viewBox="0 0 22 22" aria-hidden="true">
       <path d="M11 3 L12.7 8.5 L18 10 L12.7 11.5 L11 17 L9.3 11.5 L4 10 L9.3 8.5 Z" />
+    </svg>
+  );
+}
+
+// Small downward chevron used as the "open menu" affordance on the
+// sheet-name trigger in the meta strip.
+function ChevIcon() {
+  return (
+    <svg
+      viewBox="0 0 12 12"
+      aria-hidden="true"
+      width="10"
+      height="10"
+      style={{ marginLeft: 4, fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' }}
+    >
+      <path d="M3 5 L6 8 L9 5" />
     </svg>
   );
 }

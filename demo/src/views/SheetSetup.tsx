@@ -14,7 +14,7 @@ export function SheetSetup({ onReady }: Props) {
     setError(null);
     setWorking('create');
     try {
-      const title = `Budgit — ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+      const title = `Budgie — ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
       const id = await createSpreadsheet(title);
       onReady(id, title);
     } catch (e) {
@@ -46,7 +46,7 @@ export function SheetSetup({ onReady }: Props) {
     <div className="setup-wrap">
       <div className="setup-card">
         <div className="signin-logo">
-          <span className="signin-logo-text">Budgit</span>
+          <span className="signin-logo-text">Budgie</span>
           <span className="signin-logo-line" />
         </div>
         <h1 className="setup-h1">Where should we track?</h1>

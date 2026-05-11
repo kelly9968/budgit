@@ -43,9 +43,12 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
   const [showModal, setShowModal] = useState(false);
 
   // AI parse state
-  const fileRef = useRef<HTMLInputElement | null>(null);
+  const cameraRef = useRef<HTMLInputElement | null>(null);
+  const galleryRef = useRef<HTMLInputElement | null>(null);
   const [parsing, setParsing] = useState<'idle' | 'image' | 'text'>('idle');
-  const [showTextPop, setShowTextPop] = useState(false);
+  // Input mode: 'amount' shows the numeric input; 'text' shows the wand
+  // parser. Camera + file are immediate actions that don't change mode.
+  const [mode, setMode] = useState<'amount' | 'text'>('text');
   const [parseText, setParseText] = useState('');
   const [pendingMulti, setPendingMulti] = useState<Transaction[] | null>(null);
 
@@ -97,6 +100,10 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
       setDate(p.date);
       setCat(p.cat);
       setNote(p.note);
+      // Drop the user back into the amount view so the parsed value is
+      // immediately visible in the big serif numeral.
+      setMode('amount');
+      setParseText('');
       setError(null);
       setFlash('Parsed — review and save');
       setTimeout(() => setFlash(null), 1800);
@@ -135,8 +142,6 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
         { categories: categories.map((c) => c.name), today: todayISO() },
       );
       applyParsed(result);
-      setShowTextPop(false);
-      setParseText('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not parse text');
     } finally {
@@ -153,48 +158,99 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
 
   return (
     <form className="add" onSubmit={handleSubmit}>
-      <div className="add-amt-hero">
-        <div className="add-amt-lbl">Amount</div>
-        <div className="add-amt-display">
-          <span className="add-amt-currency">$</span>
-          <input
-            className="add-amt-input"
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min="0"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0"
-            required
-          />
+      <div className={`add-amt-hero mode-${mode}`}>
+        <div className="add-amt-lbl">
+          {mode === 'text' ? 'Describe' : 'Amount'}
         </div>
+
+        {mode === 'amount' && (
+          <div className="add-amt-display">
+            <span className="add-amt-currency">$</span>
+            <input
+              className="add-amt-input"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0"
+              required
+            />
+          </div>
+        )}
+
+        {mode === 'text' && (
+          <div className="amt-textpop-frame">
+            <textarea
+              className="amt-textpop-input"
+              value={parseText}
+              onChange={(e) => setParseText(e.target.value)}
+              placeholder="e.g. coffee 4.50 yesterday"
+              rows={2}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleParseText();
+              }}
+            />
+            <button
+              type="button"
+              className="amt-textpop-go"
+              onClick={handleParseText}
+              disabled={parsing === 'text' || !parseText.trim()}
+            >
+              {parsing === 'text' ? 'Parsing…' : 'Parse'}
+            </button>
+          </div>
+        )}
 
         <div className="add-amt-tools">
           <button
             type="button"
-            className={`amt-tool ${parsing === 'image' ? 'busy' : ''}`}
-            onClick={() => fileRef.current?.click()}
+            className={`amt-tool ${mode === 'amount' ? 'on' : ''}`}
+            onClick={() => setMode('amount')}
             disabled={parsing !== 'idle'}
-            aria-label="Parse from image"
-            title="Parse from photo"
+            aria-label="Enter amount"
+            title="Enter amount"
+            aria-pressed={mode === 'amount'}
+          >
+            <DollarIcon />
+          </button>
+          <button
+            type="button"
+            className={`amt-tool ${mode === 'text' ? 'on' : ''} ${parsing === 'text' ? 'busy' : ''}`}
+            onClick={() => setMode('text')}
+            disabled={parsing !== 'idle'}
+            aria-label="Describe with AI"
+            title="Describe with AI"
+            aria-pressed={mode === 'text'}
+          >
+            {parsing === 'text' ? <SpinIcon /> : <WandIcon />}
+          </button>
+          <button
+            type="button"
+            className={`amt-tool ${parsing === 'image' ? 'busy' : ''}`}
+            onClick={() => cameraRef.current?.click()}
+            disabled={parsing !== 'idle'}
+            aria-label="Take photo of receipt"
+            title="Take photo"
           >
             {parsing === 'image' ? <SpinIcon /> : <CameraIcon />}
           </button>
           <button
             type="button"
-            className={`amt-tool ${parsing === 'text' ? 'busy' : ''}`}
-            onClick={() => setShowTextPop((v) => !v)}
+            className={`amt-tool ${parsing === 'image' ? 'busy' : ''}`}
+            onClick={() => galleryRef.current?.click()}
             disabled={parsing !== 'idle'}
-            aria-label="Parse from text"
-            title="Parse from text"
+            aria-label="Attach receipt image"
+            title="Attach image"
           >
-            {parsing === 'text' ? <SpinIcon /> : <SparkleIcon />}
+            <ClipIcon />
           </button>
         </div>
 
         <input
-          ref={fileRef}
+          ref={cameraRef}
           type="file"
           accept="image/*"
           capture="environment"
@@ -205,53 +261,31 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
             e.target.value = '';
           }}
         />
-
-        {showTextPop && (
-          <div className="amt-textpop">
-            <textarea
-              className="amt-textpop-input"
-              value={parseText}
-              onChange={(e) => setParseText(e.target.value)}
-              placeholder="e.g. coffee 4.50 yesterday, or paste a charge"
-              rows={3}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleParseText();
-                if (e.key === 'Escape') setShowTextPop(false);
-              }}
-            />
-            <div className="amt-textpop-actions">
-              <button
-                type="button"
-                className="amt-textpop-cancel"
-                onClick={() => setShowTextPop(false)}
-                disabled={parsing === 'text'}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="amt-textpop-go"
-                onClick={handleParseText}
-                disabled={parsing === 'text' || !parseText.trim()}
-              >
-                {parsing === 'text' ? 'Parsing…' : 'Parse'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="add-row">
-        <span className="add-row-lbl">Date</span>
         <input
-          className="add-row-input"
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
+          ref={galleryRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleImage(f);
+            e.target.value = '';
+          }}
         />
-        <span className="add-row-hint">{fmtDateLong(date)}</span>
       </div>
+
+      {mode !== 'text' && (
+        <div className="add-row">
+          <span className="add-row-lbl">Date</span>
+          <input
+            className="add-row-input"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <span className="add-row-hint">{fmtDateLong(date)}</span>
+        </div>
+      )}
 
       <div className="add-row">
         <span className="add-row-lbl">Category</span>
@@ -328,10 +362,34 @@ function CameraIcon() {
   );
 }
 
-function SparkleIcon() {
+function DollarIcon() {
+  // Inline serif-feel "$" — borrows the editorial currency glyph used in
+  // the amount hero rather than a generic geometric one.
   return (
     <svg viewBox="0 0 22 22" aria-hidden="true">
-      <path d="M11 3 L12.4 8.6 L18 10 L12.4 11.4 L11 17 L9.6 11.4 L4 10 L9.6 8.6 Z" />
+      <path d="M11 4 L11 18" />
+      <path d="M14.5 7.2 C 13.6 6.2 12.4 5.6 11 5.6 C 9 5.6 7.6 6.7 7.6 8.3 C 7.6 9.9 9 10.6 11 11.1 C 13 11.6 14.4 12.3 14.4 13.9 C 14.4 15.5 13 16.6 11 16.6 C 9.6 16.6 8.3 16 7.4 15" />
+    </svg>
+  );
+}
+
+function ClipIcon() {
+  // Paperclip — signals "attach a file" (as distinct from the camera).
+  return (
+    <svg viewBox="0 0 22 22" aria-hidden="true">
+      <path d="M16.5 9.5 L9 17 C 7 19 4 16 6 14 L13.5 6.5 C 14.8 5.2 16.8 5.2 18 6.5 C 19.2 7.7 19.2 9.7 18 11 L11 18" />
+    </svg>
+  );
+}
+
+function WandIcon() {
+  // Diagonal wand stick with a 4-point star at the tip + a tiny sparkle.
+  // Reads as "magic" without leaning on emoji.
+  return (
+    <svg viewBox="0 0 22 22" aria-hidden="true">
+      <path d="M3 19 L13 9" />
+      <path d="M16 3 L17 6 L20 7 L17 8 L16 11 L15 8 L12 7 L15 6 Z" />
+      <path d="M6.2 4.5 L6.7 5.8 L8 6.3 L6.7 6.8 L6.2 8.1 L5.7 6.8 L4.4 6.3 L5.7 5.8 Z" />
     </svg>
   );
 }

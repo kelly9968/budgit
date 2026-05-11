@@ -32,7 +32,7 @@ export function ContinueAs({ profile, onSignedIn, onUseDifferent }: Props) {
     <div className="signin-wrap">
       <div className="signin-card continue-as">
         <div className="signin-logo">
-          <span className="signin-logo-text">Budgit</span>
+          <span className="signin-logo-text">Budgie</span>
           <span className="signin-logo-line" />
         </div>
 

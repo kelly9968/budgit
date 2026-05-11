@@ -272,6 +272,14 @@ input, button, textarea, select {
   position: relative;
 }
 
+.signin-mark {
+  width: 88px;
+  height: 88px;
+  display: block;
+  margin: 0 auto var(--s-3);
+  object-fit: contain;
+}
+
 .signin-logo {
   display: flex;
   flex-direction: column;
@@ -676,7 +684,21 @@ input, button, textarea, select {
   top: 0;
   z-index: 10;
 }
-.app-logo { display: flex; flex-direction: column; gap: 3px; }
+.app-logo {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 3px;
+}
+.app-logo-mark {
+  grid-row: 1 / span 2;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  display: block;
+}
 .app-logo-text {
   font-family: var(--serif);
   font-size: 20px;
@@ -689,35 +711,95 @@ input, button, textarea, select {
   background: linear-gradient(90deg, var(--red), var(--blue), var(--green));
   width: 100%;
 }
-.app-user { display: flex; align-items: center; gap: 6px; }
+.app-user {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .app-avatar {
   width: 28px;
   height: 28px;
   border-radius: 50%;
   border: 1px solid var(--hair);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  display: block;
 }
-.app-signout {
+.app-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--surf);
-  border: 1px solid var(--hair);
-  border-radius: 999px;
-  padding: 6px 11px;
-  font-size: 11px;
-  font-family: var(--sans);
-  font-weight: 500;
+  font-family: var(--serif);
+  font-size: 14px;
   color: var(--ink2);
+}
+.app-avatar-btn {
+  background: none;
+  border: none;
+  padding: 0;
   cursor: pointer;
-  letter-spacing: 0.01em;
-  transition: background var(--dur-fast) var(--ease),
-              color var(--dur-fast) var(--ease),
-              border-color var(--dur-fast) var(--ease);
+  border-radius: 50%;
+  transition: transform var(--dur-fast) var(--ease);
 }
-.app-signout:hover:not(:disabled) {
+.app-avatar-btn:hover { transform: scale(1.06); }
+.app-avatar-btn:focus-visible { outline: 2px solid var(--ink3); outline-offset: 2px; }
+
+/* ── Floating menu (used by both account + sheet dropdowns) ───── */
+.app-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
   background: var(--card);
-  color: var(--ink);
-  border-color: var(--hair-strong);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.18),
+              0 2px 6px -2px rgba(0, 0, 0, 0.08);
+  padding: 6px;
+  z-index: 20;
+  animation: paper-rise 140ms var(--ease-out) both;
 }
-.app-signout:disabled { opacity: 0.5; cursor: not-allowed; }
+.app-menu-sheet {
+  left: 0;
+  right: auto;
+  min-width: 180px;
+}
+.app-menu-head {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--hair);
+  margin-bottom: 6px;
+}
+.app-menu-name {
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.app-menu-email {
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--ink3);
+  margin-top: 2px;
+  word-break: break-all;
+}
+.app-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease);
+}
+.app-menu-item:hover:not(:disabled) { background: var(--surf); }
+.app-menu-item:disabled { opacity: 0.5; cursor: default; }
 
 .app-meta {
   font-size: var(--fs-micro);
@@ -738,6 +820,24 @@ input, button, textarea, select {
   letter-spacing: -0.005em;
 }
 .app-meta a:hover { color: var(--ink); }
+.app-meta-sheet { position: relative; display: inline-block; }
+.app-meta-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--ink2);
+  display: inline-flex;
+  align-items: center;
+  font-style: normal;
+  transition: color var(--dur-fast) var(--ease);
+}
+.app-meta-trigger:hover { color: var(--ink); }
+.app-meta-trigger[aria-expanded='true'] { color: var(--ink); }
 .app-meta-err {
   color: var(--red);
   margin-left: var(--s-1);
@@ -859,18 +959,6 @@ input, button, textarea, select {
   position: relative;
   animation: paper-rise var(--dur-base) var(--ease-out) 0ms both;
 }
-/* tiny serif glyph in upper-right corner — ledger feel */
-.add-amt-hero::before {
-  content: '§';
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  font-family: var(--serif);
-  font-size: 16px;
-  color: var(--ink3);
-  opacity: 0.3;
-}
-
 .add-amt-lbl {
   font-size: var(--fs-eyebrow);
   font-weight: 600;
@@ -914,22 +1002,23 @@ input, button, textarea, select {
 }
 .add-amt-input[type='number'] { -moz-appearance: textfield; }
 
-/* AI parse tools — bottom-right of the amount card */
+/* Input-method icon row — sits centered under the active input. The four
+   buttons are a single segmented control: $ and wand are toggles between
+   modes, camera + clip fire actions immediately. */
 .add-amt-tools {
-  position: absolute;
-  bottom: 10px;
-  right: 12px;
   display: flex;
-  gap: 4px;
+  justify-content: center;
+  gap: 6px;
+  margin-top: var(--s-3);
 }
 .amt-tool {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--hair);
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: var(--ink3);
   cursor: pointer;
@@ -945,8 +1034,8 @@ input, button, textarea, select {
 }
 .amt-tool:disabled { cursor: default; opacity: 0.6; }
 .amt-tool svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.5;
@@ -954,6 +1043,12 @@ input, button, textarea, select {
   stroke-linejoin: round;
 }
 .amt-tool.busy { color: var(--ink2); border-color: var(--ink3); }
+/* "On" state for the magic-wand toggle — signals the parser is active */
+.amt-tool.on {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--card-inner, rgba(0, 0, 0, 0.04));
+}
 
 @keyframes amt-spin {
   to { transform: rotate(360deg); }
@@ -963,37 +1058,69 @@ input, button, textarea, select {
   animation: amt-spin 0.7s linear infinite;
 }
 
-/* Inline textarea popover anchored under the amount card */
-.amt-textpop {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: -4px;
-  transform: translateY(100%);
-  background: var(--card);
-  border: 1px solid var(--hair);
+/* AI text parser — replaces the amount input when the wand mode is
+   active. The frame is a thin gradient that drifts through hue,
+   hinting at the magic-wand parse without overpowering the editorial
+   palette. Lives directly inside .add-amt-hero. */
+.amt-textpop-frame {
+  position: relative;
   border-radius: 12px;
-  padding: 10px;
-  box-shadow: var(--shadow-paper);
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  animation: paper-rise var(--dur-base) var(--ease-out) both;
+  padding: 2px; /* thickness of the animated border */
+  background:
+    linear-gradient(
+      120deg,
+      #ff6b9d, #ffb347, #ffe66d, #6ee7b7, #5eead4, #60a5fa, #c084fc, #ff6b9d
+    );
+  background-size: 320% 320%;
+  animation: amt-border-shift 9s linear infinite, paper-rise var(--dur-base) var(--ease-out) both;
 }
 .amt-textpop-input {
+  display: block;
   width: 100%;
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 1.45;
   color: var(--ink);
-  border: 1px solid var(--hair);
-  border-radius: 8px;
+  border: none;
+  border-radius: 10px;
   background: var(--card);
-  padding: 8px 10px;
+  padding: 12px 14px;
   resize: vertical;
   outline: none;
+  min-height: 64px;
 }
-.amt-textpop-input:focus { border-color: var(--ink3); }
+.amt-textpop-input::placeholder { color: var(--ink3); }
+
+.amt-textpop-go {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  background: var(--ink);
+  color: var(--paper, #fff);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.amt-textpop-go:disabled { opacity: 0.4; cursor: default; }
+
+/* In text mode the hero is a touch shorter — the textarea + button
+   take less vertical room than the giant serif amount glyph. */
+.add-amt-hero.mode-text { padding-top: var(--s-4); }
+
+@keyframes amt-border-shift {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 320% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .amt-textpop-frame { animation: paper-rise var(--dur-base) var(--ease-out) both; }
+}
 .amt-textpop-actions {
   display: flex;
   gap: 8px;
@@ -1340,6 +1467,54 @@ input, button, textarea, select {
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
+}
+
+/* The view toggle (chart vs. pie) sits inside the centered month-nav
+   block, between the chevron buttons. Compact pill, deliberately
+   smaller than the chevrons so the month label keeps focus. */
+.dash-monthnav-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.dash-view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: var(--card);
+  overflow: hidden;
+}
+.dash-view-btn {
+  width: 28px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--ink3);
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.dash-view-btn + .dash-view-btn {
+  border-left: 1px solid var(--hair);
+}
+.dash-view-btn.on {
+  color: var(--ink);
+  background: var(--surf);
+}
+.dash-view-btn:hover:not(.on) { color: var(--ink2); }
+.dash-view-btn svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .dash-monthnav {
@@ -1765,6 +1940,74 @@ input, button, textarea, select {
   border-radius: 50%;
   margin-right: 6px;
   vertical-align: 1px;
+}
+
+/* ── Category pie breakdown ──────────────────────────────────── */
+.dash-pie-wrap {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  margin: var(--s-2) 0 var(--s-3);
+}
+.dash-pie-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  text-align: center;
+}
+.dash-pie-center-lbl {
+  font-size: var(--fs-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ink3);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.dash-pie-center-amt {
+  font-family: var(--serif);
+  font-size: 26px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1;
+}
+.dash-pie-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--hair);
+}
+.dash-pie-row {
+  display: grid;
+  grid-template-columns: 10px 22px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hair);
+  font-size: 14px;
+}
+.dash-pie-row:last-child { border-bottom: none; }
+.dash-pie-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.dash-pie-ico { font-size: 16px; line-height: 1; }
+.dash-pie-name { color: var(--ink); font-weight: 500; }
+.dash-pie-pct {
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--ink3);
+  font-variant-numeric: tabular-nums;
+}
+.dash-pie-amt {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Daily tracker table ──────────────────────────────────────── */

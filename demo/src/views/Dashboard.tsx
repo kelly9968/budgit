@@ -6,15 +6,27 @@ import {
   fmtUSDk,
   recoveryDays,
 } from '../lib/budget';
+import { getCategory, type Category } from '../lib/categories';
 import type { Transaction } from '../lib/types';
 
 type SelectedMonth = { year: number; month: number };
+type DashView = 'metrics' | 'pie';
 
 type Props = {
   txns: Transaction[];
   budget: number;
+  categories: Category[];
   onBudgetChange: (n: number) => void;
 };
+
+// Slice palette for the pie chart. Saturated counterparts to the pastel
+// category swatches — those wash out at small sizes. Round-robin assigned
+// in order of category list.
+const PIE_PALETTE = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+  '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16',
+  '#f97316', '#6366f1', '#14b8a6', '#a3a3a3',
+];
 
 const GREEN = '#639922';
 const RED = '#e24b4a';
@@ -45,15 +57,31 @@ function effectiveToday(sel: SelectedMonth): Date {
   return new Date(sel.year, sel.month, 1);
 }
 
-export function Dashboard({ txns, budget, onBudgetChange }: Props) {
+export function Dashboard({ txns, budget, categories, onBudgetChange }: Props) {
   const now = new Date();
   const [sel, setSel] = useState<SelectedMonth>({
     year: now.getFullYear(),
     month: now.getMonth(),
   });
+  const [view, setView] = useState<DashView>('metrics');
 
   const today = useMemo(() => effectiveToday(sel), [sel]);
   const m = useMemo(() => computeDashboard(txns, budget, today), [txns, budget, today]);
+
+  // Category totals for the selected month — the pie view's input.
+  const catTotals = useMemo(() => {
+    const sums = new Map<string, number>();
+    for (const t of txns) {
+      const d = new Date(t.date + 'T00:00:00');
+      if (d.getFullYear() === sel.year && d.getMonth() === sel.month) {
+        sums.set(t.cat, (sums.get(t.cat) ?? 0) + t.amount);
+      }
+    }
+    const total = Array.from(sums.values()).reduce((a, b) => a + b, 0);
+    return Array.from(sums.entries())
+      .map(([name, amount]) => ({ name, amount, pct: total > 0 ? amount / total : 0 }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [txns, sel]);
 
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(budget));
@@ -86,17 +114,41 @@ export function Dashboard({ txns, budget, onBudgetChange }: Props) {
         >‹</button>
         <div className="dash-monthnav-lbl">
           <div className="dash-month">{monthLbl}</div>
-          {!isCurrentMonth && (
-            <button
-              type="button"
-              className="dash-today-btn"
-              onClick={() =>
-                setSel({ year: now.getFullYear(), month: now.getMonth() })
-              }
-            >
-              Today
-            </button>
-          )}
+          <div className="dash-monthnav-meta">
+            {!isCurrentMonth && (
+              <button
+                type="button"
+                className="dash-today-btn"
+                onClick={() =>
+                  setSel({ year: now.getFullYear(), month: now.getMonth() })
+                }
+              >
+                Today
+              </button>
+            )}
+            <div className="dash-view-toggle" role="group" aria-label="Dashboard view">
+              <button
+                type="button"
+                className={`dash-view-btn ${view === 'metrics' ? 'on' : ''}`}
+                onClick={() => setView('metrics')}
+                aria-pressed={view === 'metrics'}
+                aria-label="Metrics view"
+                title="Metrics"
+              >
+                <ChartLineIcon />
+              </button>
+              <button
+                type="button"
+                className={`dash-view-btn ${view === 'pie' ? 'on' : ''}`}
+                onClick={() => setView('pie')}
+                aria-pressed={view === 'pie'}
+                aria-label="Category breakdown"
+                title="By category"
+              >
+                <PieIcon />
+              </button>
+            </div>
+          </div>
         </div>
         <button
           type="button"
@@ -112,6 +164,49 @@ export function Dashboard({ txns, budget, onBudgetChange }: Props) {
         </div>
       )}
 
+      {view === 'pie' && (
+        <PieBreakdown
+          totals={catTotals}
+          categories={categories}
+          monthLbl={monthLbl}
+        />
+      )}
+
+      {view === 'metrics' && (
+        <DashMetricsView
+          m={m}
+          budget={budget}
+          editingBudget={editingBudget}
+          setEditingBudget={setEditingBudget}
+          budgetInput={budgetInput}
+          setBudgetInput={setBudgetInput}
+          onBudgetChange={onBudgetChange}
+          assumed={assumed}
+          setAssumed={setAssumed}
+          recovery={recovery}
+        />
+      )}
+    </div>
+  );
+}
+
+function DashMetricsView({
+  m, budget, editingBudget, setEditingBudget, budgetInput, setBudgetInput,
+  onBudgetChange, assumed, setAssumed, recovery,
+}: {
+  m: ReturnType<typeof computeDashboard>;
+  budget: number;
+  editingBudget: boolean;
+  setEditingBudget: (v: boolean) => void;
+  budgetInput: string;
+  setBudgetInput: (v: string) => void;
+  onBudgetChange: (n: number) => void;
+  assumed: number;
+  setAssumed: (n: number) => void;
+  recovery: number;
+}) {
+  return (
+    <>
       {/* Spend hero */}
       <div className="dash-card">
         <div className="dash-hero">
@@ -305,7 +400,126 @@ export function Dashboard({ txns, budget, onBudgetChange }: Props) {
         </div>
         <DailyTable metrics={m} recoveryDays={recovery} onTrack={m.onTrack} />
       </div>
+    </>
+  );
+}
+
+function PieBreakdown({
+  totals,
+  categories,
+  monthLbl,
+}: {
+  totals: { name: string; amount: number; pct: number }[];
+  categories: Category[];
+  monthLbl: string;
+}) {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  const colorOf = (i: number) => PIE_PALETTE[i % PIE_PALETTE.length];
+  const total = totals.reduce((a, b) => a + b.amount, 0);
+
+  useEffect(() => {
+    if (!ref.current || totals.length === 0) return;
+    const chart = new Chart(ref.current, {
+      type: 'doughnut',
+      data: {
+        labels: totals.map((t) => t.name),
+        datasets: [
+          {
+            data: totals.map((t) => t.amount),
+            backgroundColor: totals.map((_, i) => colorOf(i)),
+            borderColor: '#fff',
+            borderWidth: 2,
+            hoverOffset: 6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '58%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#fff',
+            titleColor: '#0a0a0a',
+            bodyColor: '#0a0a0a',
+            borderColor: '#e8e8e2',
+            borderWidth: 1,
+            padding: 10,
+            callbacks: {
+              label: (ctx) => {
+                const v = Number(ctx.raw);
+                const pct = total > 0 ? Math.round((v / total) * 100) : 0;
+                return `${ctx.label}: ${fmtUSD(v)} (${pct}%)`;
+              },
+            },
+          },
+        },
+      },
+    });
+    return () => chart.destroy();
+  }, [totals, total]);
+
+  if (totals.length === 0) {
+    return (
+      <div className="dash-card">
+        <div className="dash-lbl" style={{ marginBottom: 8 }}>
+          By category — {monthLbl}
+        </div>
+        <div className="dash-future-note" style={{ marginTop: 0 }}>
+          No transactions logged for this month.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="dash-card">
+      <div className="dash-lbl" style={{ marginBottom: 10 }}>
+        By category — {monthLbl}
+      </div>
+      <div className="dash-pie-wrap">
+        <canvas ref={ref} />
+        <div className="dash-pie-center">
+          <div className="dash-pie-center-lbl">Total</div>
+          <div className="dash-pie-center-amt">{fmtUSD(total, 0)}</div>
+        </div>
+      </div>
+      <ul className="dash-pie-list">
+        {totals.map((t, i) => {
+          const cat = getCategory(t.name, categories);
+          return (
+            <li key={t.name} className="dash-pie-row">
+              <span className="dash-pie-swatch" style={{ background: colorOf(i) }} />
+              <span className="dash-pie-ico" aria-hidden="true">{cat.icon}</span>
+              <span className="dash-pie-name">{t.name}</span>
+              <span className="dash-pie-pct">{Math.round(t.pct * 100)}%</span>
+              <span className="dash-pie-amt">{fmtUSD(t.amount, 0)}</span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
+  );
+}
+
+function ChartLineIcon() {
+  return (
+    <svg viewBox="0 0 22 22" aria-hidden="true">
+      <path d="M3 16 L8 10 L12 13 L19 5" />
+      <circle cx="19" cy="5" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function PieIcon() {
+  // Pie with a single slice cut out — reads as "category breakdown".
+  return (
+    <svg viewBox="0 0 22 22" aria-hidden="true">
+      <circle cx="11" cy="11" r="7.5" />
+      <path d="M11 11 L11 3.5" />
+      <path d="M11 11 L18.5 11" />
+    </svg>
   );
 }
 

@@ -6,6 +6,10 @@ type Props = {
   onSignedIn: (profile: GoogleProfile, accessToken: string) => void;
 };
 
+// Coin flip per page load — same icon for the whole sign-in session,
+// reshuffled on refresh. Matches the header's draw on the post-auth side.
+const SIGNIN_ICON = Math.random() < 0.5 ? '/icon_1.png' : '/icon_2.png';
+
 export function SignIn({ onSignedIn }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
@@ -25,13 +29,19 @@ export function SignIn({ onSignedIn }: Props) {
   return (
     <div className="signin-wrap">
       <div className="signin-card">
+        <img
+          src={SIGNIN_ICON}
+          alt=""
+          className="signin-mark"
+          aria-hidden="true"
+        />
         <div className="signin-logo">
-          <span className="signin-logo-text">Budgit</span>
+          <span className="signin-logo-text">Budgie</span>
           <span className="signin-logo-line" />
         </div>
-        <h1 className="signin-h1">Budget on top of your sheet.</h1>
+        <h1 className="signin-h1">Budgie helps.</h1>
         <p className="signin-p">
-          <strong>Budgit</strong> is a free, browser-only budgeting app that
+          <strong>Budgie</strong> is a free, browser-only budgeting app that
           keeps your transactions in <em>your own</em> Google Sheet. Track
           variable spending, see daily and end-of-month forecasts, and catch
           overspend early &mdash; without sending your data to anyone but
@@ -52,7 +62,7 @@ export function SignIn({ onSignedIn }: Props) {
           <div className="signin-how-h">How it works</div>
           <ol className="signin-how-list">
             <li>Sign in with Google.</li>
-            <li>Create a fresh tracking sheet, or pick an existing one. Budgit only sees the sheet you choose.</li>
+            <li>Create a fresh tracking sheet, or pick an existing one. Budgie only sees the sheet you choose.</li>
             <li>Add transactions on the go &mdash; they sync straight to your sheet, which stays under your control in Drive.</li>
           </ol>
         </div>
