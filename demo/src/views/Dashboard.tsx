@@ -85,7 +85,14 @@ export function Dashboard({ txns, budget, categories, onBudgetChange }: Props) {
 
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(budget));
+  // Slider seeds at the user's current blended daily spend so dragging
+  // tells them something useful out of the gate. Re-seeded when the
+  // blended figure changes (e.g., switching months) but stays put once
+  // the user grabs the handle within a given month.
   const [assumed, setAssumed] = useState(0);
+  useEffect(() => {
+    setAssumed(Math.round(m.blended));
+  }, [m.blended]);
 
   const recovery = recoveryDays(m.spent, m.dailyRate, m.todayDay, assumed);
   const monthLbl = new Date(m.year, m.month, 1).toLocaleDateString('en-US', {
@@ -326,51 +333,84 @@ function DashMetricsView({
         </div>
       </div>
 
-      {/* Recovery */}
-      <div className="dash-card">
-        <div className="dash-rec">
-          {m.onTrack && m.spent <= m.target ? (
-            <>
-              <div className="dash-rec-check">✓</div>
-              <div className="dash-rec-text">
-                <strong>You're on track!</strong>
-                <br />
-                Blended avg {fmtUSD(m.blended)}/day under {fmtUSDk(m.dailyRate)}{' '}
-                daily rate.
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="dash-rec-num">{recovery}</div>
-              <div className="dash-rec-text">
-                <strong>
-                  {recovery === 1 ? 'day' : 'days'} of{' '}
-                  {assumed === 0 ? 'no spending' : 'low spending'}
-                </strong>{' '}
-                to get back under the budget line.
-                <br />
-                <span style={{ fontSize: 11, color: 'var(--ink3)' }}>
-                  Assumes:{' '}
+      {/* Surplus / recovery card — same affordance, different framing
+          depending on whether you're on or off track. The slider
+          models a steady future daily spend; the headline number
+          adapts so dragging always tells the user something useful. */}
+      {(() => {
+        const onTrackState = m.onTrack && m.spent <= m.target;
+        const daysLeft = Math.max(m.daysInMonth - m.todayDay, 0);
+        const projectedSurplus = Math.round((m.left - assumed * daysLeft) * 100) / 100;
+        // Slider scales with the user's daily rate so it can always
+        // push past breakeven on a high-budget month.
+        const sliderMax = Math.max(300, Math.ceil((m.dailyRate * 3) / 25) * 25);
+        return (
+          <div className="dash-card">
+            <div className="dash-rec">
+              {onTrackState ? (
+                projectedSurplus >= 0 ? (
+                  <>
+                    <div className="dash-rec-check">✓</div>
+                    <div className="dash-rec-text">
+                      <strong style={{ color: GREEN }}>
+                        {fmtUSD(projectedSurplus, 0)} surplus
+                      </strong>
+                      <br />
+                      {daysLeft === 0
+                        ? 'Month is closed — locked in.'
+                        : `if you spend ${assumed === 0 ? '$0' : `$${assumed}`}/day for the next ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}.`}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="dash-rec-num" style={{ color: RED }}>
+                      {fmtUSD(Math.abs(projectedSurplus), 0)}
+                    </div>
+                    <div className="dash-rec-text">
+                      <strong>over budget</strong> at this pace.
+                      <br />
+                      <span style={{ fontSize: 11, color: 'var(--ink3)' }}>
+                        ${assumed}/day × {daysLeft} {daysLeft === 1 ? 'day' : 'days'} would spend the cushion.
+                      </span>
+                    </div>
+                  </>
+                )
+              ) : (
+                <>
+                  <div className="dash-rec-num">{recovery}</div>
+                  <div className="dash-rec-text">
+                    <strong>
+                      {recovery === 1 ? 'day' : 'days'} of{' '}
+                      {assumed === 0 ? 'no spending' : 'low spending'}
+                    </strong>{' '}
+                    to get back under the budget line.
+                    <br />
+                    <span style={{ fontSize: 11, color: 'var(--ink3)' }}>
+                      Assumes:{' '}
+                      {assumed === 0 ? '$0 / day' : `$${assumed} / day`}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+            {daysLeft > 0 && (
+              <div className="dash-rec-slider">
+                <input
+                  type="range"
+                  min={0}
+                  max={sliderMax}
+                  step={5}
+                  value={assumed}
+                  onChange={(e) => setAssumed(parseInt(e.target.value))}
+                />
+                <span>
                   {assumed === 0 ? '$0 / day' : `$${assumed} / day`}
                 </span>
               </div>
-            </>
-          )}
-        </div>
-        <div className="dash-rec-slider">
-          <input
-            type="range"
-            min={0}
-            max={300}
-            step={5}
-            value={assumed}
-            onChange={(e) => setAssumed(parseInt(e.target.value))}
-          />
-          <span>
-            {assumed === 0 ? '$0 / day' : `$${assumed} / day`}
-          </span>
-        </div>
-      </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Chart */}
       <div className="dash-card">
@@ -387,8 +427,11 @@ function DashMetricsView({
           <span><span className="dot" style={{ background: BLUE }} /> Actual</span>
           <span><span className="dot" style={{ background: GREEN }} /> Forecast</span>
           <span><span className="dot" style={{ background: RED }} /> Budget</span>
-          {recovery > 0 && !m.onTrack && (
-            <span><span className="dot" style={{ background: AMBER }} /> Recovery</span>
+          {((m.onTrack && m.spent <= m.target) || recovery > 0) && (
+            <span>
+              <span className="dot" style={{ background: AMBER }} />{' '}
+              {m.onTrack && m.spent <= m.target ? 'Scenario' : 'Recovery'}
+            </span>
           )}
         </div>
       </div>
@@ -601,21 +644,28 @@ function ChartCanvas({
       return Math.round((m.spent + m.blended * (d - m.todayDay)) * 100) / 100;
     });
 
-    // Recovery line: starting at today's spend, projects forward at the
-    // user's assumed daily-spend rate. Drawn only when the user is off
-    // track AND has set a recovery period (recoveryDays > 0). Stops at
-    // the day cumulative dips back below the budget line.
-    const showRecovery = !m.onTrack && recoveryDays > 0;
+    // Slider scenario line: projects today's spend forward at the
+    // assumed daily-spend rate. Always drawn when on track (so the
+    // surplus slider has a visual). When off track, stops at the day
+    // cumulative dips back below the budget line — preserves the
+    // original "recovery" framing.
+    const onTrackChart = m.onTrack && m.spent <= m.target;
+    const showScenario = onTrackChart || recoveryDays > 0;
     const rData = Array.from({ length: m.daysInMonth }, (_, i) => {
-      if (!showRecovery) return null;
+      if (!showScenario) return null;
       const d = i + 1;
       if (d < m.todayDay) return null;
       const offset = d - m.todayDay;
-      if (offset > recoveryDays) return null;
+      if (!onTrackChart && offset > recoveryDays) return null;
       return Math.round((m.spent + assumed * offset) * 100) / 100;
     });
 
-    const yMax = Math.max(budget, ...m.cum, ...fData.filter((v): v is number => v != null)) + 300;
+    const yMax = Math.max(
+      budget,
+      ...m.cum,
+      ...fData.filter((v): v is number => v != null),
+      ...rData.filter((v): v is number => v != null),
+    ) + 300;
 
     const chart = new Chart(ref.current, {
       type: 'line',
@@ -654,7 +704,7 @@ function ChartCanvas({
             fill: false,
           },
           {
-            label: 'Recovery',
+            label: m.onTrack && m.spent <= m.target ? 'Scenario' : 'Recovery',
             data: rData,
             borderColor: AMBER,
             borderWidth: 2,

@@ -186,8 +186,8 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
               className="amt-textpop-input"
               value={parseText}
               onChange={(e) => setParseText(e.target.value)}
-              placeholder="e.g. coffee 4.50 yesterday"
-              rows={2}
+              placeholder="e.g. coffee 4.50 yesterday, lunch 12 today, gas 38 monday"
+              rows={4}
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleParseText();
@@ -287,31 +287,33 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
         </div>
       )}
 
-      <div className="add-row">
-        <span className="add-row-lbl">Category</span>
-        <div className="add-cats">
-          {categories.map((c) => (
+      {mode !== 'text' && (
+        <div className="add-row">
+          <span className="add-row-lbl">Category</span>
+          <div className="add-cats">
+            {categories.map((c) => (
+              <button
+                key={c.name}
+                type="button"
+                className={`add-cat ${c.name === cat ? 'sel' : ''}`}
+                style={{ background: c.color }}
+                onClick={() => setCat(c.name)}
+              >
+                <span className="add-cat-ico">{c.icon}</span>
+                <span className="add-cat-name">{c.name}</span>
+              </button>
+            ))}
             <button
-              key={c.name}
               type="button"
-              className={`add-cat ${c.name === cat ? 'sel' : ''}`}
-              style={{ background: c.color }}
-              onClick={() => setCat(c.name)}
+              className="add-cat add-cat-new"
+              onClick={() => setShowModal(true)}
             >
-              <span className="add-cat-ico">{c.icon}</span>
-              <span className="add-cat-name">{c.name}</span>
+              <span className="add-cat-ico">+</span>
+              <span className="add-cat-name">New</span>
             </button>
-          ))}
-          <button
-            type="button"
-            className="add-cat add-cat-new"
-            onClick={() => setShowModal(true)}
-          >
-            <span className="add-cat-ico">+</span>
-            <span className="add-cat-name">New</span>
-          </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="add-note">
         <span className="add-note-ico" style={{ background: selectedCat.color }}>📝</span>

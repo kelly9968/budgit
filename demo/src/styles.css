@@ -1079,15 +1079,15 @@ input, button, textarea, select {
   width: 100%;
   font-family: var(--sans);
   font-size: 16px;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--ink);
   border: none;
   border-radius: 10px;
   background: var(--card);
-  padding: 12px 14px;
+  padding: 14px 16px 44px;
   resize: vertical;
   outline: none;
-  min-height: 64px;
+  min-height: 128px;
 }
 .amt-textpop-input::placeholder { color: var(--ink3); }
 
