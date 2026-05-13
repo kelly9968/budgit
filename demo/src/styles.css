@@ -737,26 +737,12 @@ input, button, textarea, select {
   padding: 0 6px;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  /* Stop iOS from selecting / showing the magnifier on the double-tap
+     that triggers the return-to-today gesture. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
-.app-monthnav-today {
-  background: none;
-  border: 1px solid var(--hair-strong);
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink3);
-  font-size: 16px;
-  line-height: 0;
-  padding: 0 0 2px;
-  cursor: pointer;
-  margin-left: 4px;
-  transition: background var(--dur-fast) var(--ease),
-              color var(--dur-fast) var(--ease);
-}
-.app-monthnav-today:hover { color: var(--ink); background: var(--surf); }
 .app-logo {
   display: flex;
   align-items: center;

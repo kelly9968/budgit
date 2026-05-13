@@ -347,7 +347,13 @@ function Main({
             >
               ‹
             </button>
-            <span className="app-monthnav-label">{monthLbl}</span>
+            <span
+              className="app-monthnav-label"
+              onDoubleClick={goToday}
+              title={isCurrentMonth ? undefined : 'Double-tap to return to this month'}
+            >
+              {monthLbl}
+            </span>
             <button
               type="button"
               className="app-monthnav-arrow app-monthnav-next"
@@ -356,17 +362,6 @@ function Main({
             >
               ›
             </button>
-            {!isCurrentMonth && (
-              <button
-                type="button"
-                className="app-monthnav-today"
-                onClick={goToday}
-                aria-label="Jump to current month"
-                title="Today"
-              >
-                ·
-              </button>
-            )}
           </div>
         )}
         <div className="app-user" ref={userMenuRef}>
