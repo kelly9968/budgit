@@ -507,7 +507,7 @@ function DailyBarCard({
       <div className="dash-legend">
         {isStacked ? (
           <>
-            {orderedCategories.slice(0, 5).map((name) => (
+            {orderedCategories.map((name) => (
               <span key={name}>
                 <span
                   className="dot"
@@ -516,11 +516,6 @@ function DailyBarCard({
                 {name}
               </span>
             ))}
-            {orderedCategories.length > 5 && (
-              <span style={{ color: 'var(--ink3)' }}>
-                +{orderedCategories.length - 5} more
-              </span>
-            )}
             <span>
               <span className="dot" style={{ background: C_ACTUAL }} /> 7-day avg
             </span>
