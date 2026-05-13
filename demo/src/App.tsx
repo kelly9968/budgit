@@ -341,7 +341,7 @@ function Main({
           <div className="app-monthnav">
             <button
               type="button"
-              className="app-monthnav-arrow"
+              className="app-monthnav-arrow app-monthnav-prev"
               onClick={() => navMonth(-1)}
               aria-label="Previous month"
             >
@@ -350,7 +350,7 @@ function Main({
             <span className="app-monthnav-label">{monthLbl}</span>
             <button
               type="button"
-              className="app-monthnav-arrow"
+              className="app-monthnav-arrow app-monthnav-next"
               onClick={() => navMonth(1)}
               aria-label="Next month"
             >

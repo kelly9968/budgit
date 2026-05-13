@@ -90,11 +90,19 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "ss01", "ss02"; /* DM Sans alt forms when present */
+  /* Zoom + tap behaviour: viewport meta locks pinch-zoom, these knobs
+     stop iOS Safari from zooming on input focus, kill double-tap zoom
+     on buttons, and prevent the rubber-band scroll past the page top
+     when we pull on the sticky header. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
+  overscroll-behavior-y: contain;
 }
 
-/* Selection — match brand */
+/* Selection — warm parchment palette match */
 ::selection {
-  background: rgba(55, 138, 221, 0.18);
+  background: rgba(184, 145, 70, 0.22);
   color: var(--ink);
 }
 
@@ -712,9 +720,15 @@ input, button, textarea, select {
   border-radius: 50%;
   padding: 0 0 3px;
   transition: background var(--dur-fast) var(--ease),
-              color var(--dur-fast) var(--ease);
+              color var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease-out);
 }
 .app-monthnav-arrow:hover { color: var(--ink); background: var(--surf); }
+/* Direction-cue micro-translate on hover — the arrow nudges the way
+   it would carry you. Subtle; restraint matters more than the gesture. */
+.app-monthnav-prev:hover { transform: translateX(-1.5px); }
+.app-monthnav-next:hover { transform: translateX(1.5px); }
+.app-monthnav-arrow:active { transform: scale(0.92); }
 .app-monthnav-label {
   font-family: var(--serif);
   font-size: 15px;
@@ -2658,16 +2672,34 @@ input, button, textarea, select {
 .dash-tile-bad .dash-tile-val { color: var(--red); }
 .dash-tile-neutral .dash-tile-val { color: var(--ink); }
 
-/* ── Italic-serif section headings between cards ──────────────── */
+/* ── Italic-serif section headings between cards — magazine-style
+       title with a hair-rule extending right to the (optional) aside. ── */
 .dash-section-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--s-2);
-  margin: var(--s-3) 0 var(--s-2);
+  gap: 14px;
+  margin: var(--s-4) 0 var(--s-2);
   padding: 0 var(--s-2);
 }
-.dash-section-row .dash-section { margin: 0; padding-left: 0; }
+.dash-section-row .dash-section {
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+/* The rule trails off the end of the heading, evoking the broken-rule
+   under a magazine section title. Translated to sit on the x-height. */
+.dash-section-row .dash-section::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--hair);
+  transform: translateY(-5px);
+  min-width: 12px;
+}
 .dash-section {
   font-family: var(--serif);
   font-style: italic;
@@ -2681,6 +2713,7 @@ input, button, textarea, select {
 .dash-section-aside {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 /* ── Slider under cumulative chart ────────────────────────────── */
