@@ -82,7 +82,7 @@
     <span class="logo-line"></span>
   </div>
   <h1>Privacy Policy</h1>
-  <div class="meta">Effective 2026-05-09</div>
+  <div class="meta">Effective 2026-05-13</div>
 
   <p>
     Budgie is a static, browser-only budgeting app. This policy explains what data
@@ -109,6 +109,41 @@
     These permissions are scoped via Google's <code>drive.file</code> mechanism, which limits
     access to files Budgie has created or that you have explicitly opened with Budgie.
   </p>
+
+  <h2>How Budgie uses Google user data</h2>
+  <p>
+    Below is a per-scope breakdown of every category of Google user data the app
+    touches, including how it is accessed, used, processed, stored, and shared.
+  </p>
+  <ul>
+    <li>
+      <strong>Name, email address, and profile photo</strong>
+      (scopes: <code>openid</code>, <code>email</code>, <code>profile</code>).
+      <br /><strong>Access:</strong> Retrieved from Google when you sign in, via Google Identity Services running in your browser.
+      <br /><strong>Use / purpose:</strong> Displayed in the app so you can confirm which Google account is connected, and used as the label on the account switcher. No other use.
+      <br /><strong>Processing:</strong> None beyond display. We do not derive, enrich, profile, or analyze this data, and we do not use it to train AI/ML models.
+      <br /><strong>Storage:</strong> Cached in your browser's localStorage so the app can re-open with one tap. Never transmitted to any server operated by Budgie (we run no servers).
+      <br /><strong>Sharing:</strong> Not shared with any third party.
+    </li>
+    <li>
+      <strong>Spreadsheet contents you create or open with Budgie</strong>
+      (scope: <code>https://www.googleapis.com/auth/drive.file</code>).
+      <br /><strong>Access:</strong> Budgie reads and writes only spreadsheets it created, or files you explicitly open via Google's file picker. It cannot see any other files in your Drive.
+      <br /><strong>Use / purpose:</strong> To store and retrieve your budget — transactions, monthly budget amount, and category list — so the app can display, edit, and total them. This is the app's sole feature.
+      <br /><strong>Processing:</strong> All reads, writes, and calculations happen locally in your browser. No data is sent to any Budgie-operated server, and no data is used to train AI/ML models.
+      <br /><strong>Storage:</strong> Your budget data lives in your own Google Sheet, in your own Google Drive. The selected sheet's ID and name are cached in your browser's localStorage so the app can reconnect on next launch.
+      <br /><strong>Sharing:</strong> Not shared with any third party. The data travels directly between your browser and Google's APIs.
+    </li>
+  </ul>
+
+  <h2>What Budgie does not do with Google user data</h2>
+  <ul>
+    <li>We do not transfer Google user data to any server operated by Budgie or any third party.</li>
+    <li>We do not sell Google user data.</li>
+    <li>We do not use Google user data for advertising, retargeting, or credit-worthiness purposes.</li>
+    <li>We do not use Google user data to develop, improve, or train generalized or non-personalized AI/ML models.</li>
+    <li>We do not allow humans to read Google user data, except (a) with your explicit consent, (b) where necessary for security purposes such as investigating abuse, (c) to comply with applicable law, or (d) where the data is aggregated and used for internal operations consistent with the Google API Services User Data Policy.</li>
+  </ul>
 
   <h2>Where data is stored</h2>
   <ul>
