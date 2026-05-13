@@ -67,6 +67,40 @@ export function computeDashboard(
   };
 }
 
+// Direction of the recent spending tempo: is the user's last-7-day pace
+// faster, slower, or roughly equal to their month-to-date pace? Used by
+// the dashboard's "Spending slowing / up" pill. The 5% dead-band keeps
+// the pill from flickering on small fluctuations.
+export type SpendingTrend = 'slowing' | 'rising' | 'flat';
+export function spendingTrend(avg7: number, avgM: number): SpendingTrend {
+  if (avgM <= 0) return 'flat';
+  const ratio = avg7 / avgM;
+  if (ratio < 0.95) return 'slowing';
+  if (ratio > 1.05) return 'rising';
+  return 'flat';
+}
+
+// Budget remaining ÷ days remaining (incl. today). The third tile in the
+// dashboard's metric row — answers "what can I spend per day from here?"
+export function leftPerDay(left: number, daysInMonth: number, todayDay: number): number {
+  const daysLeft = Math.max(daysInMonth - todayDay + 1, 1);
+  return round2(left / daysLeft);
+}
+
+// Centered 7-day rolling average over the per-day raw spend array.
+// Pads ends with shorter windows so every day-of-month has a value.
+// Returns null for days that are entirely in the future (raw === 0 AND
+// beyond todayDay) so chart.js can break the line at "now".
+export function rolling7(raw: number[], todayDay: number): (number | null)[] {
+  return raw.map((_, i) => {
+    if (i + 1 > todayDay) return null;
+    const lo = Math.max(0, i - 3);
+    const hi = Math.min(raw.length, i + 4);
+    const win = raw.slice(lo, hi);
+    return round2(win.reduce((a, b) => a + b, 0) / win.length);
+  });
+}
+
 // How many days at `assumed` daily spend until cumulative spend drops back
 // below the cumulative budget line. Capped at 120 days.
 export function recoveryDays(

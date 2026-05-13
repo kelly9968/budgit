@@ -3,7 +3,7 @@ import { SignIn } from './views/SignIn';
 import { SheetSetup } from './views/SheetSetup';
 import { Add } from './views/Add';
 import { Transactions } from './views/Transactions';
-import { Dashboard } from './views/Dashboard';
+import { Dashboard, type SelectedMonth } from './views/Dashboard';
 import { DemoData } from './views/DemoData';
 import { EditTransactionModal } from './views/EditTransactionModal';
 import { readCachedToken, signOut, silentSignIn } from './api/gis';
@@ -148,10 +148,28 @@ function Main({
 }) {
   const [tab, setTab] = useState<TabId>('add');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [sheetMenuOpen, setSheetMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
-  const sheetMenuRef = useRef<HTMLDivElement | null>(null);
   const tabbarRef = useRef<HTMLElement | null>(null);
+
+  // Selected month — owned at app level so the header can render its
+  // month nav even when the active tab is something other than the
+  // dashboard. Dashboard reads it via prop.
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<SelectedMonth>({
+    year: now.getFullYear(),
+    month: now.getMonth(),
+  });
+  const navMonth = (delta: number) => {
+    const next = new Date(selectedMonth.year, selectedMonth.month + delta, 1);
+    setSelectedMonth({ year: next.getFullYear(), month: next.getMonth() });
+  };
+  const goToday = () =>
+    setSelectedMonth({ year: now.getFullYear(), month: now.getMonth() });
+  const isCurrentMonth =
+    selectedMonth.year === now.getFullYear() &&
+    selectedMonth.month === now.getMonth();
+  const monthLbl = new Date(selectedMonth.year, selectedMonth.month, 1)
+    .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   // Swipe across the tab bar to move between tabs. Order excludes
   // 'demo' in production; the tab itself is dev-only.
@@ -216,21 +234,18 @@ function Main({
     refresh();
   }, [refresh]);
 
-  // Close either dropdown when the user clicks anywhere outside it.
+  // Close the avatar dropdown when the user clicks anywhere outside it.
   useEffect(() => {
-    if (!userMenuOpen && !sheetMenuOpen) return;
+    if (!userMenuOpen) return;
     const handler = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (userMenuOpen && userMenuRef.current && !userMenuRef.current.contains(t)) {
+      if (userMenuRef.current && !userMenuRef.current.contains(t)) {
         setUserMenuOpen(false);
-      }
-      if (sheetMenuOpen && sheetMenuRef.current && !sheetMenuRef.current.contains(t)) {
-        setSheetMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [userMenuOpen, sheetMenuOpen]);
+  }, [userMenuOpen]);
 
   const handleAdd = async (tx: Transaction) => {
     setTxns((prev) => [tx, ...prev]);
@@ -322,6 +337,38 @@ function Main({
           />
           <span className="app-logo-text">budgie</span>
         </div>
+        {tab === 'dash' && (
+          <div className="app-monthnav">
+            <button
+              type="button"
+              className="app-monthnav-arrow"
+              onClick={() => navMonth(-1)}
+              aria-label="Previous month"
+            >
+              ‹
+            </button>
+            <span className="app-monthnav-label">{monthLbl}</span>
+            <button
+              type="button"
+              className="app-monthnav-arrow"
+              onClick={() => navMonth(1)}
+              aria-label="Next month"
+            >
+              ›
+            </button>
+            {!isCurrentMonth && (
+              <button
+                type="button"
+                className="app-monthnav-today"
+                onClick={goToday}
+                aria-label="Jump to current month"
+                title="Today"
+              >
+                ·
+              </button>
+            )}
+          </div>
+        )}
         <div className="app-user" ref={userMenuRef}>
           <button
             type="button"
@@ -345,6 +392,44 @@ function Main({
                 <div className="app-menu-name">{auth.profile.name}</div>
                 <div className="app-menu-email">{auth.profile.email}</div>
               </div>
+              <div className="app-menu-section">
+                <div className="app-menu-section-lbl">Sheet</div>
+                <div className="app-menu-section-val">{config.sheetName ?? '—'}</div>
+              </div>
+              <button
+                type="button"
+                className="app-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  refresh();
+                }}
+                disabled={loading}
+              >
+                {loading ? 'Refreshing…' : 'Refresh'}
+              </button>
+              <button
+                type="button"
+                className="app-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  onSwitchSheet();
+                }}
+              >
+                Switch sheet
+              </button>
+              <a
+                className="app-menu-item"
+                role="menuitem"
+                href={sheetUrl(config.sheetId)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setUserMenuOpen(false)}
+              >
+                Open in Drive ↗
+              </a>
+              <div className="app-menu-sep" />
               <button
                 type="button"
                 className="app-menu-item"
@@ -361,58 +446,7 @@ function Main({
         </div>
       </header>
 
-      <div className="app-meta">
-        <div className="app-meta-sheet" ref={sheetMenuRef}>
-          <button
-            type="button"
-            className="app-meta-trigger"
-            onClick={() => setSheetMenuOpen((v) => !v)}
-            aria-haspopup="menu"
-            aria-expanded={sheetMenuOpen}
-          >
-            {config.sheetName ?? 'sheet'}
-            <ChevIcon />
-          </button>
-          {sheetMenuOpen && (
-            <div className="app-menu app-menu-sheet" role="menu">
-              <button
-                type="button"
-                className="app-menu-item"
-                role="menuitem"
-                onClick={() => {
-                  setSheetMenuOpen(false);
-                  refresh();
-                }}
-                disabled={loading}
-              >
-                {loading ? 'Refreshing…' : 'Refresh'}
-              </button>
-              <button
-                type="button"
-                className="app-menu-item"
-                role="menuitem"
-                onClick={() => {
-                  setSheetMenuOpen(false);
-                  onSwitchSheet();
-                }}
-              >
-                Switch sheet
-              </button>
-              <a
-                className="app-menu-item"
-                role="menuitem"
-                href={sheetUrl(config.sheetId)}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setSheetMenuOpen(false)}
-              >
-                Open in Drive ↗
-              </a>
-            </div>
-          )}
-        </div>
-        {error && <span className="app-meta-err">· {error}</span>}
-      </div>
+      {error && <div className="app-error">{error}</div>}
 
       <main className="app-main">
         {tab === 'add' && (
@@ -430,6 +464,7 @@ function Main({
               budget={budget}
               categories={categories}
               onBudgetChange={handleBudgetChange}
+              selectedMonth={selectedMonth}
             />
           ) : (
             <LoadingSplash />
@@ -562,18 +597,3 @@ function DemoIcon() {
   );
 }
 
-// Small downward chevron used as the "open menu" affordance on the
-// sheet-name trigger in the meta strip.
-function ChevIcon() {
-  return (
-    <svg
-      viewBox="0 0 12 12"
-      aria-hidden="true"
-      width="10"
-      height="10"
-      style={{ marginLeft: 4, fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' }}
-    >
-      <path d="M3 5 L6 8 L9 5" />
-    </svg>
-  );
-}

@@ -9,35 +9,37 @@
 
 :root {
   /* Brand tokens — locked, do not touch */
-  --ink: #0a0a0a;
-  --ink2: #555;
-  --ink3: #999;
-  --bg: #fafaf8;
-  --card: #ffffff;
-  --brd: #e8e8e2;
-  --surf: #f7f7f5;
-  --blue: #378add;
-  --red: #e24b4a;
-  --green: #639922;
-  --amber: #ba7517;
+  --ink: #1a1610;
+  --ink2: #5a4f3e;
+  --ink3: #9c907c;
+  --bg: #ede5d2;
+  --card: #fcf7e6;
+  --brd: #e0d6c2;
+  --surf: #ede5d2;
+  --blue: #3b5e8e;
+  --red: #c25b3f;
+  --green: #6b8c4a;
+  --amber: #b89146;
   --serif: 'DM Serif Display', Georgia, serif;
   --sans: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
-  /* New: hairline border for refined card edges */
-  --hair: rgba(10, 10, 10, 0.07);
-  --hair-strong: rgba(10, 10, 10, 0.12);
+  /* Hairline border — warm brown tint to match the parchment palette.
+     Stronger than before so card edges read clearly on cream-on-cream. */
+  --hair: rgba(80, 55, 20, 0.14);
+  --hair-strong: rgba(80, 55, 20, 0.22);
 
-  /* New: paper-grain shadow stack — soft, warm, multi-layered.
-     Mimics print: a contact shadow + a longer ambient throw. */
+  /* Paper-grain shadow stack — soft, warm, multi-layered. Mimics print:
+     a contact shadow + a longer ambient throw. Bumped up since cards
+     now sit on a darker cream surface and need to read as lifted. */
   --shadow-paper:
     0 0.5px 0 rgba(255, 255, 255, 0.9) inset,
-    0 1px 1px rgba(40, 30, 10, 0.04),
-    0 6px 20px -10px rgba(40, 30, 10, 0.10);
+    0 1px 2px rgba(60, 40, 15, 0.05),
+    0 8px 24px -12px rgba(60, 40, 15, 0.14);
   --shadow-paper-lift:
     0 0.5px 0 rgba(255, 255, 255, 0.9) inset,
-    0 1px 2px rgba(40, 30, 10, 0.05),
-    0 14px 36px -14px rgba(40, 30, 10, 0.16);
+    0 2px 4px rgba(60, 40, 15, 0.06),
+    0 18px 40px -16px rgba(60, 40, 15, 0.22);
 
   /* Spacing scale — 4px base, golden-ish step at large sizes */
   --s-1: 4px;
@@ -81,15 +83,12 @@ html, body, #root { height: 100%; }
 body {
   font-family: var(--sans);
   color: var(--ink);
-  background: var(--bg);
+  /* White outside the 480px shell so the cream is visibly an "inside the
+     app" surface, not the page color. The paper-grain gradients move
+     onto .app-shell so they only colour the in-app surface. */
+  background: #fff;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Subtle warm paper grain via stacked gradients — invisible but warms
-     the field tone. Pure flat #fafaf8 reads digital; this reads printed. */
-  background-image:
-    radial-gradient(1200px 800px at 80% -10%, rgba(186, 117, 23, 0.025), transparent 60%),
-    radial-gradient(1000px 600px at -10% 100%, rgba(55, 138, 221, 0.020), transparent 60%);
-  background-attachment: fixed;
   font-feature-settings: "ss01", "ss02"; /* DM Sans alt forms when present */
 }
 
@@ -659,24 +658,91 @@ input, button, textarea, select {
   max-width: 480px;
   margin: 0 auto;
   background: var(--bg);
+  /* Paper grain — warms the cream surface, only inside the shell. */
+  background-image:
+    radial-gradient(1200px 800px at 80% -10%, rgba(186, 117, 23, 0.035), transparent 60%),
+    radial-gradient(1000px 600px at -10% 100%, rgba(55, 138, 221, 0.020), transparent 60%);
+  background-attachment: fixed;
   border-left: 1px solid var(--hair);
   border-right: 1px solid var(--hair);
   position: relative;
 }
 
 .app-header {
-  display: flex;
-  justify-content: space-between;
+  /* 3-column grid so the center slot (month nav) is dead center
+     regardless of the logo / avatar widths. */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  gap: var(--s-2);
   padding: 14px var(--s-4);
   border-bottom: 1px solid var(--hair);
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(237, 229, 210, 0.92);
   backdrop-filter: saturate(140%) blur(12px);
   -webkit-backdrop-filter: saturate(140%) blur(12px);
   position: sticky;
   top: 0;
   z-index: 10;
 }
+.app-header > .app-logo { justify-self: start; }
+.app-header > .app-monthnav { justify-self: center; }
+.app-header > .app-user { justify-self: end; }
+
+/* ── Header month nav: ‹ April 2026 ›  with a tiny Today affordance ── */
+.app-monthnav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.app-monthnav-arrow {
+  background: none;
+  border: none;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink3);
+  cursor: pointer;
+  border-radius: 50%;
+  padding: 0 0 3px;
+  transition: background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+.app-monthnav-arrow:hover { color: var(--ink); background: var(--surf); }
+.app-monthnav-label {
+  font-family: var(--serif);
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  padding: 0 6px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.app-monthnav-today {
+  background: none;
+  border: 1px solid var(--hair-strong);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink3);
+  font-size: 16px;
+  line-height: 0;
+  padding: 0 0 2px;
+  cursor: pointer;
+  margin-left: 4px;
+  transition: background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+.app-monthnav-today:hover { color: var(--ink); background: var(--surf); }
 .app-logo {
   display: flex;
   align-items: center;
@@ -783,6 +849,42 @@ input, button, textarea, select {
 }
 .app-menu-item:hover:not(:disabled) { background: var(--surf); }
 .app-menu-item:disabled { opacity: 0.5; cursor: default; }
+
+.app-menu-section {
+  padding: 6px 10px 8px;
+  margin-top: 2px;
+  border-top: 1px solid var(--hair);
+}
+.app-menu-section-lbl {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink3);
+  margin-bottom: 2px;
+}
+.app-menu-section-val {
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  word-break: break-word;
+}
+.app-menu-sep {
+  height: 1px;
+  background: var(--hair);
+  margin: 4px 6px;
+}
+
+/* ── Error banner replaces the old .app-meta strip ──────────────── */
+.app-error {
+  font-size: 12px;
+  color: var(--red);
+  background: #f1ddcd;
+  border-bottom: 1px solid var(--hair);
+  padding: 8px var(--s-4);
+  font-family: var(--sans);
+}
 
 .app-meta {
   font-size: var(--fs-micro);
@@ -1454,33 +1556,24 @@ input, button, textarea, select {
 }
 
 .tx-sec {
-  margin-bottom: var(--s-5);
+  margin-bottom: var(--s-3);
 }
 .tx-day {
-  font-size: var(--fs-eyebrow);
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   color: var(--ink3);
-  margin-bottom: var(--s-2);
+  margin: var(--s-3) 0 4px;
   padding-left: var(--s-1);
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
 }
-.tx-day::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--hair);
-}
+.tx-sec:first-child .tx-day { margin-top: 0; }
 
 .tx-grp {
   background: var(--card);
   border: 1px solid var(--hair);
-  border-radius: 14px;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: var(--shadow-paper);
 }
 
 /* Swipe-to-reveal-delete shell. The action button sits absolute under
@@ -1504,14 +1597,14 @@ input, button, textarea, select {
   will-change: transform;
 }
 .tx-row-wrap.open > .tx-row-content {
-  transform: translateX(-88px);
+  transform: translateX(-72px);
 }
 .tx-row-delete {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 88px;
+  width: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1528,17 +1621,23 @@ input, button, textarea, select {
 }
 .tx-row-delete:disabled { opacity: 0.6; cursor: default; }
 
+/* Single-line spreadsheet-ish row: [date] [badge] [note · cat] [amt].
+   Note is the headline; category sits next to it as a small tag.
+   Grid keeps amounts column-aligned across rows even when notes vary
+   in length, so amounts read like a column you can scan vertically. */
 .tx-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px 22px 1fr auto;
   align-items: center;
-  gap: var(--s-3);
-  padding: var(--s-3) var(--s-4);
+  gap: 8px;
+  padding: 7px var(--s-3);
   border-bottom: 1px solid var(--hair);
   background: transparent;
   border-left: none;
   border-right: none;
   border-top: none;
   width: 100%;
+  min-height: 36px;
   font-family: var(--sans);
   text-align: left;
   cursor: pointer;
@@ -1549,51 +1648,63 @@ input, button, textarea, select {
   background: var(--surf);
 }
 .tx-row:active:not(:disabled) {
-  background: #efeeea;
+  background: #e7dec9;
 }
 .tx-row:disabled,
 .tx-row-static { cursor: default; }
 .tx-row:last-child { border-bottom: none; }
 
-.tx-bdg {
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  flex-shrink: 0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+.tx-date {
+  font-size: 11px;
+  color: var(--ink3);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
-.tx-info {
-  flex: 1;
+.tx-bdg {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.tx-text {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
 }
-.tx-cat {
+.tx-primary {
   font-size: 14px;
   font-weight: 500;
+  color: var(--ink);
   letter-spacing: -0.005em;
-}
-.tx-note {
-  font-size: 12px;
-  color: var(--ink3);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+}
+.tx-secondary {
+  font-size: 11px;
+  color: var(--ink3);
   white-space: nowrap;
-  font-family: var(--serif);
-  font-style: italic;
+  flex-shrink: 0;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tx-amt {
   font-variant-numeric: tabular-nums;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--ink);
   font-family: var(--serif);
+  white-space: nowrap;
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -1825,9 +1936,9 @@ input, button, textarea, select {
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.dash-pill.on { background: #f0faf0; border-color: #c8e6c8; color: #2d6a2d; }
-.dash-pill.warn { background: #fdf6ec; border-color: #f0d9b0; color: var(--amber); }
-.dash-pill.over { background: #fdf1f1; border-color: #f3d5d5; color: var(--red); }
+.dash-pill.on { background: #e8eed6; border-color: #c8d3a4; color: #4a6e2e; }
+.dash-pill.warn { background: #f1e6cc; border-color: #d9c290; color: #8a6a2a; }
+.dash-pill.over { background: #f1ddcd; border-color: #d8b59a; color: #a04528; }
 .dash-dot {
   width: 5px;
   height: 5px;
@@ -2059,8 +2170,10 @@ input, button, textarea, select {
 }
 .dash-legend {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: var(--s-4);
+  column-gap: var(--s-3);
+  row-gap: 6px;
   font-size: 11px;
   color: var(--ink2);
   margin-top: var(--s-3);
@@ -2068,6 +2181,11 @@ input, button, textarea, select {
   border-top: 1px solid var(--hair);
   font-weight: 500;
   letter-spacing: -0.005em;
+}
+.dash-legend > span {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
 }
 .dash-legend .dot {
   display: inline-block;
@@ -2238,6 +2356,405 @@ input, button, textarea, select {
 .dash-table tr.recovery td:first-child {
   font-style: italic;
   color: var(--amber);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Dashboard — retro redesign (May '26)
+   New top bar, single-column hero with notch'd progress bar, 3-tile
+   metric row, italic-serif section headings, daily bar chart.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── View toggle (Metrics / By category) — small pill, right-aligned
+       at the top of the dashboard. Month nav lives in the app header. ── */
+.dash-viewtoggle-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--s-2);
+}
+.dash-viewtoggle {
+  display: inline-flex;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: var(--card);
+  overflow: hidden;
+}
+.dash-viewtoggle-btn {
+  width: 30px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--ink3);
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
+}
+.dash-viewtoggle-btn + .dash-viewtoggle-btn {
+  border-left: 1px solid var(--hair);
+}
+.dash-viewtoggle-btn.on {
+  color: var(--ink);
+  background: var(--surf);
+}
+.dash-viewtoggle-btn:hover:not(.on) { color: var(--ink2); }
+.dash-viewtoggle-btn svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── (Legacy) Top bar: right-aligned month pill — orphaned, kept for
+       backwards-compat with any cached state. Safe to delete. ── */
+.dash-topbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--s-2);
+}
+.dash-monthpill-wrap { position: relative; }
+.dash-monthpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  padding: 7px 12px 7px 14px;
+  font-family: var(--serif);
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-paper);
+  transition: background var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease);
+}
+.dash-monthpill:hover {
+  border-color: var(--hair-strong);
+  background: var(--surf);
+}
+.dash-monthpill-caret {
+  width: 9px;
+  height: 6px;
+  color: var(--ink3);
+}
+.dash-monthmenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 160px;
+  background: var(--card);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(10, 10, 10, 0.08);
+  padding: 4px;
+  z-index: 50;
+  animation: paper-rise 180ms var(--ease-out) both;
+}
+.dash-monthmenu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease);
+}
+.dash-monthmenu-item:hover:not(:disabled) { background: var(--surf); }
+.dash-monthmenu-item:disabled { color: var(--ink3); cursor: default; }
+.dash-monthmenu-item.sel { color: var(--ink); background: var(--surf); }
+.dash-monthmenu-item > span:first-child {
+  display: inline-flex;
+  width: 14px;
+  justify-content: center;
+  color: var(--ink3);
+  font-size: 14px;
+}
+.dash-monthmenu-item.sel > span:first-child { color: var(--ink); }
+.dash-monthmenu-item > span:first-child svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dash-monthmenu-sep {
+  height: 1px;
+  background: var(--hair);
+  margin: 4px 6px;
+}
+
+/* ── Hero card ────────────────────────────────────────────────── */
+.dash-hero-card {
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.dash-hero-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.dash-hero-card .dash-hero-amt {
+  font-family: var(--serif);
+  font-size: 52px;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-top: -2px;
+}
+.dash-hero-card .dash-pill {
+  margin-top: 0;
+  align-self: flex-start;
+}
+.dash-budget-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-family: var(--sans);
+  color: var(--ink3);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.dash-budget-btn:hover { background: var(--surf); color: var(--ink2); }
+.dash-budget-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+.dash-budget-val {
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  font-variant-numeric: tabular-nums;
+}
+.dash-budget-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Progress bar with vertical target notch ──────────────────── */
+.dash-pbar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+.dash-pbar {
+  position: relative;
+  height: 9px;
+  background: var(--surf);
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  overflow: visible;
+}
+.dash-pbar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: var(--green);
+  border-radius: 999px;
+  transition: width 600ms var(--ease-out);
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.18), transparent);
+}
+.dash-pbar-notch {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--ink);
+  border-radius: 2px;
+  transform: translateX(-1px);
+}
+.dash-pbar-axis {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  color: var(--ink3);
+  font-variant-numeric: tabular-nums;
+}
+.dash-pbar-target {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ── Trend pill + EOM chip row ────────────────────────────────── */
+.dash-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+.dash-chips .dash-pill { margin-top: 0; }
+.dash-pill.neutral {
+  background: var(--surf);
+  border-color: var(--hair);
+  color: var(--ink2);
+  text-transform: none;
+  letter-spacing: -0.005em;
+  font-weight: 500;
+  font-size: 11px;
+}
+
+/* ── 3-tile metric row ────────────────────────────────────────── */
+.dash-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 2px;
+}
+.dash-tile {
+  background: var(--surf);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  padding: 10px 8px 9px;
+  text-align: center;
+}
+.dash-tile-val {
+  font-family: var(--serif);
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 6px;
+}
+.dash-tile-lbl {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink3);
+}
+.dash-tile-good .dash-tile-val { color: var(--green); }
+.dash-tile-bad .dash-tile-val { color: var(--red); }
+.dash-tile-neutral .dash-tile-val { color: var(--ink); }
+
+/* ── Italic-serif section headings between cards ──────────────── */
+.dash-section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin: var(--s-3) 0 var(--s-2);
+  padding: 0 var(--s-2);
+}
+.dash-section-row .dash-section { margin: 0; padding-left: 0; }
+.dash-section {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--ink2);
+  margin: var(--s-3) 0 var(--s-2);
+  padding-left: var(--s-2);
+}
+.dash-section-aside {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ── Slider under cumulative chart ────────────────────────────── */
+.dash-slider {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-top: var(--s-3);
+  margin-top: var(--s-2);
+  border-top: 1px solid var(--hair);
+}
+.dash-slider input[type='range'] {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--surf);
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+.dash-slider input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #b89146;
+  border: 2px solid var(--card);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(10,10,10,0.22);
+}
+.dash-slider input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #b89146;
+  border: 2px solid var(--card);
+  cursor: pointer;
+}
+.dash-slider-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink3);
+  min-width: 40px;
+}
+.dash-slider-val {
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  min-width: 78px;
+  text-align: right;
+  letter-spacing: -0.005em;
+}
+
+/* ── Daily bar chart variant — taller for legibility ──────────── */
+.dash-chart-bars { height: 200px; }
+
+/* ── Dashed legend dot ────────────────────────────────────────── */
+.dot-dashed {
+  display: inline-block;
+  width: 12px;
+  height: 0;
+  margin-right: 6px;
+  vertical-align: 4px;
+  border-top: 1.5px dashed currentColor;
+  border-radius: 0;
+  background: none !important;
+  /* The inline style sets borderColor on the .dot variant; this rule
+     just tells the layout how big the swatch is. */
 }
 
 /* ════════════════════════════════════════════════════════════════════

@@ -4,72 +4,59 @@ import {
   computeDashboard,
   fmtUSD,
   fmtUSDk,
-  recoveryDays,
+  leftPerDay,
+  rolling7,
+  spendingTrend,
 } from '../lib/budget';
 import { getCategory, type Category } from '../lib/categories';
-import { useSwipe } from '../lib/swipe';
 import type { Transaction } from '../lib/types';
 
-type SelectedMonth = { year: number; month: number };
-type DashView = 'metrics' | 'pie';
+export type SelectedMonth = { year: number; month: number };
+type ChartType = 'line' | 'pie';
 
 type Props = {
   txns: Transaction[];
   budget: number;
   categories: Category[];
   onBudgetChange: (n: number) => void;
+  selectedMonth: SelectedMonth;
 };
 
-// Slice palette for the pie chart. Saturated counterparts to the pastel
-// category swatches — those wash out at small sizes. Round-robin assigned
-// in order of category list.
+// Saturated palette for the pie chart (pastels wash out at small sizes).
 const PIE_PALETTE = [
   '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
   '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16',
   '#f97316', '#6366f1', '#14b8a6', '#a3a3a3',
 ];
 
-const GREEN = '#639922';
-const RED = '#e24b4a';
-const AMBER = '#ba7517';
-const BLUE = '#378add';
+// Chart palette — muted earth-tones to match the editorial paper look.
+const C_ACTUAL = '#3b5e8e';     // deep blue
+const C_FORECAST = '#a8b3bd';   // dusty grey-blue
+const C_SLIDER = '#b89146';     // ochre / mustard
+const C_BUDGET = '#c25b3f';     // terracotta
+const C_UNDER = '#6b8c4a';      // muted moss green
+const C_OVER = '#c97a64';       // dusty terracotta
 
-const colourFor = (rate: number, dr: number): string =>
-  rate <= dr ? GREEN : rate <= dr * 1.15 ? AMBER : RED;
-
-// Build a Date that points to the right "today" for the selected month:
-//  - if it's the actual current month, use the real today
-//  - past months: last day of that month (so todayDay = daysInMonth, full
-//    cumulative shown)
-//  - future months: first day (so the chart starts blank)
+// Build the "today" date for the selected month — actual today for the
+// current month, last day for past months (full cumulative), first day
+// for future months (empty chart).
 function effectiveToday(sel: SelectedMonth): Date {
   const now = new Date();
-  if (sel.year === now.getFullYear() && sel.month === now.getMonth()) {
-    return now;
-  }
+  if (sel.year === now.getFullYear() && sel.month === now.getMonth()) return now;
   const isPast =
     sel.year < now.getFullYear() ||
     (sel.year === now.getFullYear() && sel.month < now.getMonth());
-  if (isPast) {
-    // last day of selected month
-    return new Date(sel.year, sel.month + 1, 0);
-  }
-  // future
+  if (isPast) return new Date(sel.year, sel.month + 1, 0);
   return new Date(sel.year, sel.month, 1);
 }
 
-export function Dashboard({ txns, budget, categories, onBudgetChange }: Props) {
-  const now = new Date();
-  const [sel, setSel] = useState<SelectedMonth>({
-    year: now.getFullYear(),
-    month: now.getMonth(),
-  });
-  const [view, setView] = useState<DashView>('metrics');
+export function Dashboard({ txns, budget, categories, onBudgetChange, selectedMonth }: Props) {
+  const sel = selectedMonth;
+  const [chartType, setChartType] = useState<ChartType>('line');
 
   const today = useMemo(() => effectiveToday(sel), [sel]);
   const m = useMemo(() => computeDashboard(txns, budget, today), [txns, budget, today]);
 
-  // Category totals for the selected month — the pie view's input.
   const catTotals = useMemo(() => {
     const sums = new Map<string, number>();
     for (const t of txns) {
@@ -84,131 +71,140 @@ export function Dashboard({ txns, budget, categories, onBudgetChange }: Props) {
       .sort((a, b) => b.amount - a.amount);
   }, [txns, sel]);
 
+  // Per-day-per-category spend for the selected month — used by the
+  // daily bar chart when the user picks the pie view, so each day's
+  // bar segments by category (matching the pie's slice colors).
+  const perDayByCat = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const t of txns) {
+      const d = new Date(t.date + 'T00:00:00');
+      if (d.getFullYear() !== sel.year || d.getMonth() !== sel.month) continue;
+      const day = d.getDate();
+      if (day < 1 || day > m.daysInMonth) continue;
+      let arr = map.get(t.cat);
+      if (!arr) {
+        arr = new Array(m.daysInMonth).fill(0);
+        map.set(t.cat, arr);
+      }
+      arr[day - 1] += t.amount;
+    }
+    return map;
+  }, [txns, sel, m.daysInMonth]);
+
+  // Stable color-per-category map, indexed by catTotals' descending sort
+  // so the same hue lights up the pie wedge and the stacked bar segment.
+  const catColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    catTotals.forEach((t, i) => {
+      map.set(t.name, PIE_PALETTE[i % PIE_PALETTE.length]);
+    });
+    return map;
+  }, [catTotals]);
+
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(budget));
   // Slider seeds at the user's current blended daily spend so dragging
   // tells them something useful out of the gate. Re-seeded when the
-  // blended figure changes (e.g., switching months) but stays put once
-  // the user grabs the handle within a given month.
+  // blended figure changes (e.g., switching months).
   const [assumed, setAssumed] = useState(0);
   useEffect(() => {
     setAssumed(Math.round(m.blended));
   }, [m.blended]);
 
-  const recovery = recoveryDays(m.spent, m.dailyRate, m.todayDay, assumed);
-  const monthLbl = new Date(m.year, m.month, 1).toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  });
-  const isCurrentMonth =
-    sel.year === now.getFullYear() && sel.month === now.getMonth();
   const isFuture =
-    sel.year > now.getFullYear() ||
-    (sel.year === now.getFullYear() && sel.month > now.getMonth());
-
-  const navMonth = (delta: number) => {
-    const next = new Date(sel.year, sel.month + delta, 1);
-    setSel({ year: next.getFullYear(), month: next.getMonth() });
-  };
-
-  // Swipe across the dashboard to nav months. Threshold is set high
-  // enough to coexist with vertical scrolling on long content.
-  const dashRef = useRef<HTMLDivElement | null>(null);
-  useSwipe(dashRef, {
-    onLeft: () => navMonth(1),
-    onRight: () => navMonth(-1),
-  });
+    sel.year > new Date().getFullYear() ||
+    (sel.year === new Date().getFullYear() && sel.month > new Date().getMonth());
 
   return (
-    <div className="dash" ref={dashRef}>
-      <div className="dash-monthnav">
-        <button
-          type="button"
-          className="dash-nav-btn"
-          onClick={() => navMonth(-1)}
-          aria-label="Previous month"
-        >‹</button>
-        <div className="dash-monthnav-lbl">
-          <div className="dash-month">{monthLbl}</div>
-          <div className="dash-monthnav-meta">
-            {!isCurrentMonth && (
-              <button
-                type="button"
-                className="dash-today-btn"
-                onClick={() =>
-                  setSel({ year: now.getFullYear(), month: now.getMonth() })
-                }
-              >
-                Today
-              </button>
-            )}
-            <div className="dash-view-toggle" role="group" aria-label="Dashboard view">
-              <button
-                type="button"
-                className={`dash-view-btn ${view === 'metrics' ? 'on' : ''}`}
-                onClick={() => setView('metrics')}
-                aria-pressed={view === 'metrics'}
-                aria-label="Metrics view"
-                title="Metrics"
-              >
-                <ChartLineIcon />
-              </button>
-              <button
-                type="button"
-                className={`dash-view-btn ${view === 'pie' ? 'on' : ''}`}
-                onClick={() => setView('pie')}
-                aria-pressed={view === 'pie'}
-                aria-label="Category breakdown"
-                title="By category"
-              >
-                <PieIcon />
-              </button>
-            </div>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="dash-nav-btn"
-          onClick={() => navMonth(1)}
-          aria-label="Next month"
-        >›</button>
-      </div>
-
+    <div className="dash">
       {isFuture && (
         <div className="dash-future-note">
           Looking ahead — no spend logged for this month yet.
         </div>
       )}
 
-      {view === 'pie' && (
-        <PieBreakdown
-          totals={catTotals}
-          categories={categories}
-          monthLbl={monthLbl}
-        />
+      <HeroCard
+        m={m}
+        budget={budget}
+        editingBudget={editingBudget}
+        setEditingBudget={setEditingBudget}
+        budgetInput={budgetInput}
+        setBudgetInput={setBudgetInput}
+        onBudgetChange={onBudgetChange}
+      />
+
+      <SectionRow
+        title="This month"
+        right={<ChartTypeToggle type={chartType} onChange={setChartType} />}
+      />
+      {chartType === 'line' ? (
+        <LineChartCard m={m} budget={budget} assumed={assumed} setAssumed={setAssumed} />
+      ) : (
+        <PieCard totals={catTotals} categories={categories} />
       )}
 
-      {view === 'metrics' && (
-        <DashMetricsView
-          m={m}
-          budget={budget}
-          editingBudget={editingBudget}
-          setEditingBudget={setEditingBudget}
-          budgetInput={budgetInput}
-          setBudgetInput={setBudgetInput}
-          onBudgetChange={onBudgetChange}
-          assumed={assumed}
-          setAssumed={setAssumed}
-          recovery={recovery}
-        />
-      )}
+      <SectionRow title="By day" />
+      <DailyBarCard
+        m={m}
+        byCategory={chartType === 'pie' ? perDayByCat : null}
+        categoryColors={catColorMap}
+        orderedCategories={catTotals.map((t) => t.name)}
+      />
     </div>
   );
 }
 
-function DashMetricsView({
+/* ─────────────────────────────────────────────────────────────────────
+ * Section heading row — italic serif title left, optional right slot
+ * (used for the chart-type toggle).
+ * ──────────────────────────────────────────────────────────────────── */
+function SectionRow({ title, right }: { title: string; right?: React.ReactNode }) {
+  return (
+    <div className="dash-section-row">
+      <h3 className="dash-section">{title}</h3>
+      {right && <div className="dash-section-aside">{right}</div>}
+    </div>
+  );
+}
+
+function ChartTypeToggle({
+  type,
+  onChange,
+}: {
+  type: ChartType;
+  onChange: (t: ChartType) => void;
+}) {
+  return (
+    <div className="dash-viewtoggle" role="group" aria-label="Chart type">
+      <button
+        type="button"
+        className={`dash-viewtoggle-btn ${type === 'line' ? 'on' : ''}`}
+        onClick={() => onChange('line')}
+        aria-pressed={type === 'line'}
+        title="Line chart"
+      >
+        <ChartLineIcon />
+      </button>
+      <button
+        type="button"
+        className={`dash-viewtoggle-btn ${type === 'pie' ? 'on' : ''}`}
+        onClick={() => onChange('pie')}
+        aria-pressed={type === 'pie'}
+        title="By category"
+      >
+        <PieIcon />
+      </button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Hero card — eyebrow + big amount + on-track pill + progress bar with
+ * notch + trend chip + EOM chip + 3-tile metric row.
+ * ──────────────────────────────────────────────────────────────────── */
+function HeroCard({
   m, budget, editingBudget, setEditingBudget, budgetInput, setBudgetInput,
-  onBudgetChange, assumed, setAssumed, recovery,
+  onBudgetChange,
 }: {
   m: ReturnType<typeof computeDashboard>;
   budget: number;
@@ -217,253 +213,187 @@ function DashMetricsView({
   budgetInput: string;
   setBudgetInput: (v: string) => void;
   onBudgetChange: (n: number) => void;
-  assumed: number;
-  setAssumed: (n: number) => void;
-  recovery: number;
 }) {
+  const trend = spendingTrend(m.avg7, m.avgM);
+  const leftDay = leftPerDay(m.left, m.daysInMonth, m.todayDay);
+  const targetPct = Math.min(100, Math.max(0, (m.target / Math.max(budget, 1)) * 100));
+  const spentPct = Math.min(100, Math.max(0, (m.spent / Math.max(budget, 1)) * 100));
+
   return (
-    <>
-      {/* Spend hero */}
-      <div className="dash-card">
-        <div className="dash-hero">
-          <div>
-            <div className="dash-lbl">Spend to date</div>
-            <div className="dash-hero-amt">
-              <SerifAmount value={m.spent} />
-            </div>
-            <div
-              className={`dash-pill ${
-                m.onTrack ? 'on' : m.nearTrack ? 'warn' : 'over'
-              }`}
+    <div className="dash-card dash-hero-card">
+      <div className="dash-hero-head">
+        <div className="dash-lbl">Spent this month</div>
+        {editingBudget ? (
+          <div className="dash-budget-edit">
+            <input
+              className="dash-budget-input"
+              type="number"
+              value={budgetInput}
+              onChange={(e) => setBudgetInput(e.target.value)}
+              autoFocus
+            />
+            <button
+              className="dash-mini"
+              onClick={() => {
+                const v = parseFloat(budgetInput);
+                if (v > 0) {
+                  onBudgetChange(v);
+                  setEditingBudget(false);
+                }
+              }}
             >
-              <span className="dash-dot" />
-              {m.onTrack
-                ? 'On track'
-                : m.nearTrack
-                ? 'Slightly over'
-                : 'Over budget pace'}
-            </div>
+              Save
+            </button>
           </div>
-          <div className="dash-hero-r">
-            <div className="dash-lbl">Day {m.todayDay} target</div>
-            <div className="dash-hero-tgt">{fmtUSD(m.target, 0)}</div>
-            <div
-              className="dash-vs"
-              style={{ color: m.vs > 0 ? RED : GREEN }}
-            >
-              {fmtUSD(Math.abs(m.vs), 0)} {m.vs > 0 ? 'over' : 'under'}
-            </div>
-          </div>
-        </div>
-        <div className="dash-bar">
-          <div
-            className="dash-bar-fill"
-            style={{
-              width: `${Math.min(100, Math.round((m.spent / Math.max(budget, 1)) * 100))}%`,
-              background: colourFor(
-                m.spent / Math.max(m.todayDay, 1),
-                m.dailyRate,
-              ),
+        ) : (
+          <button
+            type="button"
+            className="dash-budget-btn"
+            onClick={() => {
+              setBudgetInput(String(budget));
+              setEditingBudget(true);
             }}
+            title="Edit budget"
+            aria-label={`Edit budget (currently ${fmtUSD(budget, 0)})`}
+          >
+            <span className="dash-budget-lbl">Budget</span>
+            <span className="dash-budget-val">{fmtUSD(budget, 0)}</span>
+          </button>
+        )}
+      </div>
+
+      <div className="dash-hero-amt">{fmtUSD(m.spent, 0)}</div>
+
+      <div
+        className={`dash-pill ${
+          m.onTrack ? 'on' : m.nearTrack ? 'warn' : 'over'
+        }`}
+      >
+        <span className="dash-dot" />
+        {m.onTrack
+          ? 'On track'
+          : m.nearTrack
+          ? 'Slightly over'
+          : 'Over budget pace'}
+      </div>
+
+      <div className="dash-pbar-wrap">
+        <div className="dash-pbar">
+          <div className="dash-pbar-fill" style={{ width: `${spentPct}%` }} />
+          <div
+            className="dash-pbar-notch"
+            style={{ left: `${targetPct}%` }}
+            aria-hidden="true"
           />
         </div>
-        <div className="dash-foot">
-          <span>
-            Budget{' '}
-            {editingBudget ? (
-              <>
-                <input
-                  className="dash-budget-input"
-                  type="number"
-                  value={budgetInput}
-                  onChange={(e) => setBudgetInput(e.target.value)}
-                  autoFocus
-                />
-                <button
-                  className="dash-mini"
-                  onClick={() => {
-                    const v = parseFloat(budgetInput);
-                    if (v > 0) {
-                      onBudgetChange(v);
-                      setEditingBudget(false);
-                    }
-                  }}
-                >
-                  Save
-                </button>
-              </>
-            ) : (
-              <>
-                <strong>{fmtUSD(budget, 0)}</strong>{' '}
-                <button
-                  className="dash-mini"
-                  onClick={() => {
-                    setBudgetInput(String(budget));
-                    setEditingBudget(true);
-                  }}
-                >
-                  edit
-                </button>
-              </>
-            )}
+        <div className="dash-pbar-axis">
+          <span>$0</span>
+          <span className="dash-pbar-target">
+            ↑ Day {m.todayDay} target {fmtUSD(m.target, 0)}
           </span>
-          <span>
-            <strong>{fmtUSD(m.left, 0)}</strong> left
-          </span>
+          <span>{fmtUSD(budget, 0)}</span>
         </div>
       </div>
 
-      {/* Averages */}
-      <div className="dash-card">
-        <div className="dash-row">
-          <span className="dash-lbl">Forecast end of month</span>
-          <strong
-            className="dash-row-val"
-            style={{
-              color:
-                m.eom <= budget ? GREEN : m.eom <= budget * 1.08 ? AMBER : RED,
-            }}
-          >
-            {fmtUSD(m.eom, 0)}
-          </strong>
-        </div>
-        <Bar label="7-day avg" value={m.avg7} dr={m.dailyRate} avg7={m.avg7} avgM={m.avgM} />
-        <Bar label="Month avg" value={m.avgM} dr={m.dailyRate} avg7={m.avg7} avgM={m.avgM} />
-        <div className="dash-foot">
-          <span style={{ color: 'var(--ink2)' }}>Blended avg / day</span>
-          <span>
-            <span style={{ color: 'var(--ink3)', fontSize: 11, marginRight: 6 }}>
-              target {fmtUSDk(m.dailyRate)}
-            </span>
-            <strong style={{ color: colourFor(m.blended, m.dailyRate) }}>
-              {fmtUSD(m.blended)}
-            </strong>
+      <div className="dash-chips">
+        {trend !== 'flat' && (
+          <span className={`dash-pill ${trend === 'slowing' ? 'on' : 'over'}`}>
+            {trend === 'slowing' ? '↓ Spending slowing' : '↑ Spending rising'}
           </span>
-        </div>
+        )}
+        <span className="dash-pill neutral">
+          EOM forecast {fmtUSD(m.eom, 0)}
+        </span>
       </div>
 
-      {/* Surplus / recovery card — same affordance, different framing
-          depending on whether you're on or off track. The slider
-          models a steady future daily spend; the headline number
-          adapts so dragging always tells the user something useful. */}
-      {(() => {
-        const onTrackState = m.onTrack && m.spent <= m.target;
-        const daysLeft = Math.max(m.daysInMonth - m.todayDay, 0);
-        const projectedSurplus = Math.round((m.left - assumed * daysLeft) * 100) / 100;
-        // Slider scales with the user's daily rate so it can always
-        // push past breakeven on a high-budget month.
-        const sliderMax = Math.max(300, Math.ceil((m.dailyRate * 3) / 25) * 25);
-        return (
-          <div className="dash-card">
-            <div className="dash-rec">
-              {onTrackState ? (
-                projectedSurplus >= 0 ? (
-                  <>
-                    <div className="dash-rec-check">✓</div>
-                    <div className="dash-rec-text">
-                      <strong style={{ color: GREEN }}>
-                        {fmtUSD(projectedSurplus, 0)} surplus
-                      </strong>
-                      <br />
-                      {daysLeft === 0
-                        ? 'Month is closed — locked in.'
-                        : `if you spend ${assumed === 0 ? '$0' : `$${assumed}`}/day for the next ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}.`}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="dash-rec-num" style={{ color: RED }}>
-                      {fmtUSD(Math.abs(projectedSurplus), 0)}
-                    </div>
-                    <div className="dash-rec-text">
-                      <strong>over budget</strong> at this pace.
-                      <br />
-                      <span style={{ fontSize: 11, color: 'var(--ink3)' }}>
-                        ${assumed}/day × {daysLeft} {daysLeft === 1 ? 'day' : 'days'} would spend the cushion.
-                      </span>
-                    </div>
-                  </>
-                )
-              ) : (
-                <>
-                  <div className="dash-rec-num">{recovery}</div>
-                  <div className="dash-rec-text">
-                    <strong>
-                      {recovery === 1 ? 'day' : 'days'} of{' '}
-                      {assumed === 0 ? 'no spending' : 'low spending'}
-                    </strong>{' '}
-                    to get back under the budget line.
-                    <br />
-                    <span style={{ fontSize: 11, color: 'var(--ink3)' }}>
-                      Assumes:{' '}
-                      {assumed === 0 ? '$0 / day' : `$${assumed} / day`}
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-            {daysLeft > 0 && (
-              <div className="dash-rec-slider">
-                <input
-                  type="range"
-                  min={0}
-                  max={sliderMax}
-                  step={5}
-                  value={assumed}
-                  onChange={(e) => setAssumed(parseInt(e.target.value))}
-                />
-                <span>
-                  {assumed === 0 ? '$0 / day' : `$${assumed} / day`}
-                </span>
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Chart */}
-      <div className="dash-card">
-        <div className="dash-lbl" style={{ marginBottom: 10 }}>
-          Cumulative spend vs. budget
-        </div>
-        <ChartCanvas
-          metrics={m}
-          budget={budget}
-          assumed={assumed}
-          recoveryDays={recovery}
+      <div className="dash-tiles">
+        <Tile
+          label="Avg / day"
+          value={fmtUSD(m.avgM, 0)}
+          color={m.avgM <= m.dailyRate ? 'good' : 'bad'}
         />
-        <div className="dash-legend">
-          <span><span className="dot" style={{ background: BLUE }} /> Actual</span>
-          <span><span className="dot" style={{ background: GREEN }} /> Forecast</span>
-          <span><span className="dot" style={{ background: RED }} /> Budget</span>
-          {((m.onTrack && m.spent <= m.target) || recovery > 0) && (
-            <span>
-              <span className="dot" style={{ background: AMBER }} />{' '}
-              {m.onTrack && m.spent <= m.target ? 'Scenario' : 'Recovery'}
-            </span>
-          )}
-        </div>
+        <Tile
+          label="Target / day"
+          value={fmtUSD(m.dailyRate, 0)}
+          color="neutral"
+        />
+        <Tile
+          label="Left / day"
+          value={fmtUSD(leftDay, 0)}
+          color={leftDay >= 0 ? 'good' : 'bad'}
+        />
       </div>
-
-      {/* Daily tracker */}
-      <div className="dash-card dash-table-card">
-        <div className="dash-lbl" style={{ marginBottom: 10 }}>
-          Daily tracker
-        </div>
-        <DailyTable metrics={m} recoveryDays={recovery} onTrack={m.onTrack} />
-      </div>
-    </>
+    </div>
   );
 }
 
-function PieBreakdown({
+function Tile({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color: 'good' | 'bad' | 'neutral';
+}) {
+  return (
+    <div className={`dash-tile dash-tile-${color}`}>
+      <div className="dash-tile-val">{value}</div>
+      <div className="dash-tile-lbl">{label}</div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * "This month" — cumulative line chart card with slider.
+ * ──────────────────────────────────────────────────────────────────── */
+function LineChartCard({
+  m,
+  budget,
+  assumed,
+  setAssumed,
+}: {
+  m: ReturnType<typeof computeDashboard>;
+  budget: number;
+  assumed: number;
+  setAssumed: (n: number) => void;
+}) {
+  return (
+    <div className="dash-card">
+      <ChartCanvas metrics={m} budget={budget} assumed={assumed} />
+      <div className="dash-legend">
+        <span><span className="dot" style={{ background: C_ACTUAL }} /> Actual</span>
+        <span><span className="dot dot-dashed" style={{ borderColor: C_FORECAST }} /> Forecast</span>
+        <span><span className="dot dot-dashed" style={{ borderColor: C_SLIDER }} /> Slider</span>
+        <span><span className="dot dot-dashed" style={{ borderColor: C_BUDGET }} /> Budget</span>
+      </div>
+      <div className="dash-slider">
+        <span className="dash-slider-lbl">Slider</span>
+        <input
+          type="range"
+          min={0}
+          max={Math.max(300, Math.ceil((m.dailyRate * 3) / 25) * 25)}
+          step={5}
+          value={assumed}
+          onChange={(e) => setAssumed(parseInt(e.target.value))}
+          aria-label="Assumed daily spend"
+        />
+        <span className="dash-slider-val">${assumed} / day</span>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * "This month" — pie chart card variant. No inner heading; the parent
+ * section row provides the title (and the chart-type toggle).
+ * ──────────────────────────────────────────────────────────────────── */
+function PieCard({
   totals,
   categories,
-  monthLbl,
 }: {
   totals: { name: string; amount: number; pct: number }[];
   categories: Category[];
-  monthLbl: string;
 }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const colorOf = (i: number) => PIE_PALETTE[i % PIE_PALETTE.length];
@@ -515,9 +445,6 @@ function PieBreakdown({
   if (totals.length === 0) {
     return (
       <div className="dash-card">
-        <div className="dash-lbl" style={{ marginBottom: 8 }}>
-          By category — {monthLbl}
-        </div>
         <div className="dash-future-note" style={{ marginTop: 0 }}>
           No transactions logged for this month.
         </div>
@@ -527,9 +454,6 @@ function PieBreakdown({
 
   return (
     <div className="dash-card">
-      <div className="dash-lbl" style={{ marginBottom: 10 }}>
-        By category — {monthLbl}
-      </div>
       <div className="dash-pie-wrap">
         <canvas ref={ref} />
         <div className="dash-pie-center">
@@ -555,79 +479,76 @@ function PieBreakdown({
   );
 }
 
-function ChartLineIcon() {
-  return (
-    <svg viewBox="0 0 22 22" aria-hidden="true">
-      <path d="M3 16 L8 10 L12 13 L19 5" />
-      <circle cx="19" cy="5" r="1.4" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function PieIcon() {
-  // Pie with a single slice cut out — reads as "category breakdown".
-  return (
-    <svg viewBox="0 0 22 22" aria-hidden="true">
-      <circle cx="11" cy="11" r="7.5" />
-      <path d="M11 11 L11 3.5" />
-      <path d="M11 11 L18.5 11" />
-    </svg>
-  );
-}
-
-// Editorial number rendering: dollars set in serif, cents reduced and
-// raised like a pull-quote price tag. Splits the formatted string from
-// fmtUSD on the decimal — main amount stays inline, cents wrap into
-// .amt-cents (CSS shrinks + superscripts).
-function SerifAmount({ value }: { value: number }) {
-  const formatted = fmtUSD(value);
-  const dotIdx = formatted.lastIndexOf('.');
-  if (dotIdx < 0) return <>{formatted}</>;
-  return (
-    <>
-      {formatted.slice(0, dotIdx)}
-      <span className="amt-cents">{formatted.slice(dotIdx)}</span>
-    </>
-  );
-}
-
-function Bar({
-  label,
-  value,
-  dr,
-  avg7,
-  avgM,
+/* ─────────────────────────────────────────────────────────────────────
+ * "By day" — bar chart card. When byCategory is provided, each day's
+ * bar is segmented by category (matching the pie's slice colors);
+ * otherwise bars are single-color under/over-target.
+ * ──────────────────────────────────────────────────────────────────── */
+function DailyBarCard({
+  m,
+  byCategory,
+  categoryColors,
+  orderedCategories,
 }: {
-  label: string;
-  value: number;
-  dr: number;
-  avg7: number;
-  avgM: number;
+  m: ReturnType<typeof computeDashboard>;
+  byCategory: Map<string, number[]> | null;
+  categoryColors: Map<string, string>;
+  orderedCategories: string[];
 }) {
-  const max = Math.max(avg7, avgM, dr) * 1.1;
-  const pct = Math.min(100, Math.round((value / Math.max(max, 0.01)) * 100));
-  const c = colourFor(value, dr);
+  const isStacked = byCategory !== null && orderedCategories.length > 0;
   return (
-    <div className="dash-brow">
-      <span className="dash-blbl">{label}</span>
-      <div className="dash-bbar">
-        <div className="dash-bfil" style={{ width: `${pct}%`, background: c }} />
+    <div className="dash-card">
+      <DailyBarChart
+        metrics={m}
+        byCategory={byCategory}
+        categoryColors={categoryColors}
+        orderedCategories={orderedCategories}
+      />
+      <div className="dash-legend">
+        {isStacked ? (
+          <>
+            {orderedCategories.slice(0, 5).map((name) => (
+              <span key={name}>
+                <span
+                  className="dot"
+                  style={{ background: categoryColors.get(name) ?? '#999' }}
+                />{' '}
+                {name}
+              </span>
+            ))}
+            {orderedCategories.length > 5 && (
+              <span style={{ color: 'var(--ink3)' }}>
+                +{orderedCategories.length - 5} more
+              </span>
+            )}
+            <span>
+              <span className="dot" style={{ background: C_ACTUAL }} /> 7-day avg
+            </span>
+          </>
+        ) : (
+          <>
+            <span><span className="dot" style={{ background: C_UNDER }} /> Under target</span>
+            <span><span className="dot" style={{ background: C_OVER }} /> Over target</span>
+            <span><span className="dot" style={{ background: C_ACTUAL }} /> 7-day avg</span>
+          </>
+        )}
       </div>
-      <span className="dash-bnum" style={{ color: c }}>{fmtUSD(value)}</span>
     </div>
   );
 }
 
+/* ─────────────────────────────────────────────────────────────────────
+ * Cumulative chart canvas — Actual (solid), Forecast (dashed grey-blue),
+ * Slider scenario (dashed ochre), Budget (dashed terracotta).
+ * ──────────────────────────────────────────────────────────────────── */
 function ChartCanvas({
   metrics,
   budget,
   assumed,
-  recoveryDays,
 }: {
   metrics: ReturnType<typeof computeDashboard>;
   budget: number;
   assumed: number;
-  recoveryDays: number;
 }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
 
@@ -652,28 +573,17 @@ function ChartCanvas({
       if (d === m.todayDay) return m.spent;
       return Math.round((m.spent + m.blended * (d - m.todayDay)) * 100) / 100;
     });
-
-    // Slider scenario line: projects today's spend forward at the
-    // assumed daily-spend rate. Always drawn when on track (so the
-    // surplus slider has a visual). When off track, stops at the day
-    // cumulative dips back below the budget line — preserves the
-    // original "recovery" framing.
-    const onTrackChart = m.onTrack && m.spent <= m.target;
-    const showScenario = onTrackChart || recoveryDays > 0;
-    const rData = Array.from({ length: m.daysInMonth }, (_, i) => {
-      if (!showScenario) return null;
+    const sData = Array.from({ length: m.daysInMonth }, (_, i) => {
       const d = i + 1;
       if (d < m.todayDay) return null;
-      const offset = d - m.todayDay;
-      if (!onTrackChart && offset > recoveryDays) return null;
-      return Math.round((m.spent + assumed * offset) * 100) / 100;
+      return Math.round((m.spent + assumed * (d - m.todayDay)) * 100) / 100;
     });
 
     const yMax = Math.max(
       budget,
       ...m.cum,
       ...fData.filter((v): v is number => v != null),
-      ...rData.filter((v): v is number => v != null),
+      ...sData.filter((v): v is number => v != null),
     ) + 300;
 
     const chart = new Chart(ref.current, {
@@ -684,7 +594,7 @@ function ChartCanvas({
           {
             label: 'Actual',
             data: aData,
-            borderColor: BLUE,
+            borderColor: C_ACTUAL,
             borderWidth: 2.5,
             pointRadius: 0,
             pointHoverRadius: 5,
@@ -694,7 +604,7 @@ function ChartCanvas({
           {
             label: 'Forecast',
             data: fData,
-            borderColor: GREEN,
+            borderColor: C_FORECAST,
             borderWidth: 1.8,
             borderDash: [4, 3],
             pointRadius: 0,
@@ -703,23 +613,23 @@ function ChartCanvas({
             fill: false,
           },
           {
-            label: 'Budget',
-            data: bLine,
-            borderColor: RED,
-            borderWidth: 1.5,
-            borderDash: [5, 3],
+            label: 'Slider',
+            data: sData,
+            borderColor: C_SLIDER,
+            borderWidth: 1.8,
+            borderDash: [2, 3],
             pointRadius: 0,
+            pointHoverRadius: 4,
             tension: 0,
             fill: false,
           },
           {
-            label: m.onTrack && m.spent <= m.target ? 'Scenario' : 'Recovery',
-            data: rData,
-            borderColor: AMBER,
-            borderWidth: 2,
-            borderDash: [2, 2],
+            label: 'Budget',
+            data: bLine,
+            borderColor: C_BUDGET,
+            borderWidth: 1.5,
+            borderDash: [5, 3],
             pointRadius: 0,
-            pointHoverRadius: 4,
             tension: 0,
             fill: false,
           },
@@ -745,13 +655,13 @@ function ChartCanvas({
         },
         scales: {
           x: {
-            ticks: { font: { size: 9 }, color: '#aaa', maxTicksLimit: 6, autoSkip: true, maxRotation: 0 },
-            grid: { color: 'rgba(0,0,0,.04)' },
+            ticks: { font: { size: 9 }, color: '#aaa', maxTicksLimit: 5, autoSkip: true, maxRotation: 0 },
+            grid: { display: false },
             border: { display: false },
           },
           y: {
-            ticks: { font: { size: 9 }, color: '#aaa', callback: (v) => fmtUSDk(Number(v)) },
-            grid: { color: 'rgba(0,0,0,.04)' },
+            ticks: { display: false },
+            grid: { color: 'rgba(0,0,0,.05)', drawTicks: false },
             border: { display: false },
             min: 0,
             max: yMax,
@@ -761,7 +671,7 @@ function ChartCanvas({
     });
 
     return () => chart.destroy();
-  }, [metrics, budget, assumed, recoveryDays]);
+  }, [metrics, budget, assumed]);
 
   return (
     <div className="dash-chart-wrap">
@@ -770,68 +680,178 @@ function ChartCanvas({
   );
 }
 
-function DailyTable({
+/* ─────────────────────────────────────────────────────────────────────
+ * Daily bar chart canvas — per-day spend, colored by under/over daily
+ * target, with a 7-day rolling-avg line overlay and dashed target ref.
+ * ──────────────────────────────────────────────────────────────────── */
+function DailyBarChart({
   metrics,
-  recoveryDays,
-  onTrack,
+  byCategory,
+  categoryColors,
+  orderedCategories,
 }: {
   metrics: ReturnType<typeof computeDashboard>;
-  recoveryDays: number;
-  onTrack: boolean;
+  byCategory: Map<string, number[]> | null;
+  categoryColors: Map<string, string>;
+  orderedCategories: string[];
 }) {
-  const m = metrics;
-  let cum = 0;
-  const showRecovery = !onTrack && recoveryDays > 0;
-  const rows = Array.from({ length: m.daysInMonth }, (_, i) => {
-    const d = i + 1;
-    const ds = d <= m.todayDay ? m.raw[d - 1] : null;
-    if (ds !== null) cum = Math.round((cum + ds) * 100) / 100;
-    const bd = Math.round(m.dailyRate * d * 100) / 100;
-    const st = ds !== null ? cum : null;
-    const pm = ds !== null ? Math.round((cum - bd) * 100) / 100 : null;
-    const dLbl = new Date(m.year, m.month, d).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
+  const ref = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const m = metrics;
+    const labels = Array.from({ length: m.todayDay }, (_, i) => String(i + 1));
+    const bars = m.raw.slice(0, m.todayDay);
+    const rolling = rolling7(m.raw, m.todayDay).slice(0, m.todayDay);
+    const isStacked = byCategory !== null && orderedCategories.length > 0;
+
+    const barDatasets = isStacked
+      ? // One stacked bar dataset per category (ordered to match the pie).
+        orderedCategories.map((catName) => {
+          const fullArr = byCategory!.get(catName) ?? [];
+          return {
+            type: 'bar' as const,
+            label: catName,
+            data: fullArr.slice(0, m.todayDay),
+            backgroundColor: categoryColors.get(catName) ?? '#999',
+            borderWidth: 0,
+            barPercentage: 0.8,
+            categoryPercentage: 0.9,
+            stack: 'day',
+          };
+        })
+      : [
+          {
+            type: 'bar' as const,
+            label: 'Spent',
+            data: bars,
+            backgroundColor: bars.map((v) => (v <= m.dailyRate ? C_UNDER : C_OVER)),
+            borderRadius: 3,
+            borderSkipped: false,
+            barPercentage: 0.7,
+            categoryPercentage: 0.85,
+          },
+        ];
+
+    const chart = new Chart(ref.current, {
+      data: {
+        labels,
+        datasets: [
+          ...barDatasets,
+          {
+            type: 'line',
+            label: '7-day avg',
+            data: rolling,
+            borderColor: C_ACTUAL,
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            tension: 0.35,
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#fff',
+            titleColor: '#0a0a0a',
+            bodyColor: '#0a0a0a',
+            borderColor: '#e8e8e2',
+            borderWidth: 1,
+            padding: 10,
+            callbacks: {
+              title: (items) =>
+                new Date(m.year, m.month, parseInt(items[0].label)).toLocaleDateString(
+                  'en-US',
+                  { month: 'short', day: 'numeric' },
+                ),
+              label: (ctx) => {
+                const v = Number(ctx.raw);
+                if (ctx.dataset.label === '7-day avg') {
+                  return `7-day avg: ${fmtUSD(v)}`;
+                }
+                if (isStacked && v === 0) return '';
+                return `${ctx.dataset.label}: ${fmtUSD(v)}`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            ticks: { font: { size: 9 }, color: '#aaa', maxTicksLimit: 12, autoSkip: true, maxRotation: 0 },
+            grid: { display: false },
+            border: { display: false },
+            stacked: isStacked,
+          },
+          y: {
+            ticks: { display: false },
+            grid: { color: 'rgba(0,0,0,.05)', drawTicks: false },
+            border: { display: false },
+            min: 0,
+            suggestedMax: Math.max(m.dailyRate * 2.2, ...bars, 1),
+            stacked: isStacked,
+          },
+        },
+      },
+      plugins: [
+        {
+          // Dashed horizontal target line at dailyRate (per-day budget).
+          id: 'targetLine',
+          afterDatasetsDraw: (chart) => {
+            const yScale = chart.scales.y;
+            const xScale = chart.scales.x;
+            const y = yScale.getPixelForValue(m.dailyRate);
+            const ctx = chart.ctx;
+            ctx.save();
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = 'rgba(194, 91, 63, 0.55)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(xScale.left, y);
+            ctx.lineTo(xScale.right, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(194, 91, 63, 0.85)';
+            ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(fmtUSDk(m.dailyRate), xScale.right - 2, y - 2);
+            ctx.restore();
+          },
+        },
+      ],
     });
-    const stClass = st === null ? '' : st <= bd ? 'cg' : 'cr';
-    const dsClass = ds === null ? '' : ds === 0 ? 'cd' : ds <= m.dailyRate ? 'cg' : 'cr';
-    const pmClass = pm === null ? '' : pm < 0 ? 'cg' : pm > 0 ? 'cr' : 'cd';
-    const isToday = d === m.todayDay;
-    const isRecovery =
-      showRecovery && d > m.todayDay && d <= m.todayDay + recoveryDays;
-    const cls = [isToday && 'today', isRecovery && 'recovery']
-      .filter(Boolean)
-      .join(' ');
-    return (
-      <tr key={d} className={cls}>
-        <td>{dLbl}</td>
-        <td>{fmtUSDk(bd)}</td>
-        <td className={stClass}>{st !== null ? fmtUSDk(st) : '—'}</td>
-        <td className={dsClass}>
-          {ds === null ? '—' : ds === 0 ? '—' : fmtUSD(ds)}
-        </td>
-        <td className={pmClass}>
-          {pm === null
-            ? '—'
-            : pm === 0
-            ? '$0'
-            : (pm > 0 ? '+' : '') + fmtUSD(pm, 0)}
-        </td>
-      </tr>
-    );
-  });
+
+    return () => chart.destroy();
+  }, [metrics, byCategory, categoryColors, orderedCategories]);
+
   return (
-    <table className="dash-table">
-      <thead>
-        <tr>
-          <th>Day</th>
-          <th>Budget</th>
-          <th>Total</th>
-          <th>Day</th>
-          <th>+/−</th>
-        </tr>
-      </thead>
-      <tbody>{rows}</tbody>
-    </table>
+    <div className="dash-chart-wrap dash-chart-bars">
+      <canvas ref={ref} />
+    </div>
+  );
+}
+
+function ChartLineIcon() {
+  return (
+    <svg viewBox="0 0 22 22" aria-hidden="true">
+      <path d="M3 16 L8 10 L12 13 L19 5" />
+      <circle cx="19" cy="5" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function PieIcon() {
+  return (
+    <svg viewBox="0 0 22 22" aria-hidden="true">
+      <circle cx="11" cy="11" r="7.5" />
+      <path d="M11 11 L11 3.5" />
+      <path d="M11 11 L18.5 11" />
+    </svg>
   );
 }

@@ -23,6 +23,13 @@ const fDay = (iso: string) => {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
+// Compact, fixed-width row date — pairs with the day-group header
+// to give an Excel-like "every row is self-describing" feel.
+const fShortDate = (iso: string) => {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 export function Transactions({ txns, categories, loading, onSelect, onDelete }: Props) {
   const [query, setQuery] = useState('');
   const [catFilter, setCatFilter] = useState<string | null>(null);
@@ -231,12 +238,15 @@ function TxRow({
         disabled={!editable && !isOpen}
         aria-label={editable ? `${tx.cat} ${fmtUSD(tx.amount)}` : undefined}
       >
-        <div className="tx-bdg" style={{ background: category.color }}>{category.icon}</div>
-        <div className="tx-info">
-          <span className="tx-cat">{tx.cat}</span>
-          {tx.note && <span className="tx-note">{tx.note}</span>}
-        </div>
-        <div className="tx-amt">-{fmtUSD(tx.amount)}</div>
+        <span className="tx-date">{fShortDate(tx.date)}</span>
+        <span className="tx-bdg" style={{ background: category.color }} aria-hidden="true">
+          {category.icon}
+        </span>
+        <span className="tx-text">
+          <span className="tx-primary">{tx.note || tx.cat}</span>
+          {tx.note && <span className="tx-secondary">{tx.cat}</span>}
+        </span>
+        <span className="tx-amt">-{fmtUSD(tx.amount)}</span>
       </button>
       {editable && (
         <button
