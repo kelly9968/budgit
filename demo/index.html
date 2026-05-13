@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#ffffff" />
+<link rel="icon" type="image/png" href="/icon_1.png" />
+<link rel="apple-touch-icon" href="/icon_1.png" />
+<title>budgie &lt;3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
+</head>
+<body>
+<div id="root"></div>
+<!-- Static legal links — rendered in raw HTML so they're discoverable
+     to OAuth verification crawlers without depending on JS. Positioned
+     as a small fixed footer at the bottom-right of the viewport so it
+     stays visible on the home page without overlapping interactive
+     SPA elements (the tab bar lives at the bottom-center). -->
+<footer id="static-legal" aria-label="Legal">
+  <a href="/privacy.html" rel="noopener">Privacy Policy</a>
+  <span aria-hidden="true">·</span>
+  <a href="/terms.html" rel="noopener">Terms</a>
+</footer>
+<style>
+  #static-legal {
+    position: fixed;
+    right: 10px;
+    bottom: 6px;
+    z-index: 1;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 10px;
+    color: rgba(0, 0, 0, 0.45);
+    pointer-events: auto;
+  }
+  #static-legal a {
+    color: rgba(0, 0, 0, 0.55);
+    text-decoration: underline;
+    margin: 0 3px;
+  }
+  #static-legal a:hover { color: rgba(0, 0, 0, 0.85); }
+  /* Hide once the SPA has mounted — the SignIn / app footer carry
+     the same links in a richer presentation. The nav is rendered to
+     the DOM either way so crawlers fetching raw HTML see it. */
+  body:has(#root .signin-wrap) #static-legal,
+  body:has(#root .app-shell) #static-legal,
+  body:has(#root .setup-wrap) #static-legal {
+    display: none;
+  }
+</style>
+<script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

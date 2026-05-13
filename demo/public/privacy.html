@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy Policy — Budgie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #0a0a0a; --ink2: #555; --ink3: #999;
+    --bg: #fafaf8; --card: #fff; --hair: rgba(10,10,10,0.07);
+    --serif: 'DM Serif Display', Georgia, serif;
+    --sans: 'DM Sans', -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.65;
+    padding: 48px 24px 80px;
+  }
+  .wrap { max-width: 620px; margin: 0 auto; }
+  .logo {
+    display: flex; flex-direction: column; gap: 5px;
+    margin-bottom: 36px;
+  }
+  .logo-text { font-family: var(--serif); font-size: 22px; letter-spacing: -0.3px; }
+  .logo-line {
+    height: 2px; width: 56px; border-radius: 2px;
+    background: linear-gradient(90deg, #e24b4a, #378add, #639922);
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: 36px;
+    line-height: 1.05;
+    letter-spacing: -0.018em;
+    margin-bottom: 8px;
+  }
+  .meta {
+    font-size: 12px;
+    color: var(--ink3);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 32px;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-size: 22px;
+    margin-top: 32px;
+    margin-bottom: 8px;
+    letter-spacing: -0.012em;
+  }
+  p, ul { font-size: 15px; color: var(--ink2); margin-bottom: 12px; font-weight: 300; }
+  ul { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  strong { color: var(--ink); font-weight: 500; }
+  a { color: #378add; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--hair);
+    font-size: 13px;
+    color: var(--ink3);
+  }
+  code {
+    font-family: ui-monospace, monospace;
+    font-size: 13px;
+    background: rgba(10,10,10,0.04);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <span class="logo-text">Budgie</span>
+    <span class="logo-line"></span>
+  </div>
+  <h1>Privacy Policy</h1>
+  <div class="meta">Effective 2026-05-13</div>
+
+  <p>
+    Budgie is a static, browser-only budgeting app. This policy explains what data
+    the app touches, where that data lives, and what we do (and don't do) with it.
+  </p>
+
+  <h2>The short version</h2>
+  <ul>
+    <li>We <strong>do not run a backend</strong>. There is no Budgie server that receives, stores, or processes your data.</li>
+    <li>Your transactions live in <strong>your own Google Sheet</strong>, in your own Google Drive.</li>
+    <li>Your sign-in goes directly from your browser to Google. We never see your password or any access tokens beyond the lifetime of your browser tab.</li>
+    <li>We share <strong>nothing</strong> with anyone, because we don't have anything to share.</li>
+  </ul>
+
+  <h2>What data Budgie accesses</h2>
+  <p>
+    When you sign in with Google, Budgie requests permission to:
+  </p>
+  <ul>
+    <li>See your name, email address, and profile photo (so the app can greet you and so you can confirm which Google account is connected).</li>
+    <li>Read and write spreadsheets that you create with this app, or that you explicitly choose using Google's file picker. Budgie cannot see any other files in your Drive.</li>
+  </ul>
+  <p>
+    These permissions are scoped via Google's <code>drive.file</code> mechanism, which limits
+    access to files Budgie has created or that you have explicitly opened with Budgie.
+  </p>
+
+  <h2>How Budgie uses Google user data</h2>
+  <p>
+    Below is a per-scope breakdown of every category of Google user data the app
+    touches, including how it is accessed, used, processed, stored, and shared.
+  </p>
+  <ul>
+    <li>
+      <strong>Name, email address, and profile photo</strong>
+      (scopes: <code>openid</code>, <code>email</code>, <code>profile</code>).
+      <br /><strong>Access:</strong> Retrieved from Google when you sign in, via Google Identity Services running in your browser.
+      <br /><strong>Use / purpose:</strong> Displayed in the app so you can confirm which Google account is connected, and used as the label on the account switcher. No other use.
+      <br /><strong>Processing:</strong> None beyond display. We do not derive, enrich, profile, or analyze this data, and we do not use it to train AI/ML models.
+      <br /><strong>Storage:</strong> Cached in your browser's localStorage so the app can re-open with one tap. Never transmitted to any server operated by Budgie (we run no servers).
+      <br /><strong>Sharing:</strong> Not shared with any third party.
+    </li>
+    <li>
+      <strong>Spreadsheet contents you create or open with Budgie</strong>
+      (scope: <code>https://www.googleapis.com/auth/drive.file</code>).
+      <br /><strong>Access:</strong> Budgie reads and writes only spreadsheets it created, or files you explicitly open via Google's file picker. It cannot see any other files in your Drive.
+      <br /><strong>Use / purpose:</strong> To store and retrieve your budget — transactions, monthly budget amount, and category list — so the app can display, edit, and total them. This is the app's sole feature.
+      <br /><strong>Processing:</strong> All reads, writes, and calculations happen locally in your browser. No data is sent to any Budgie-operated server, and no data is used to train AI/ML models.
+      <br /><strong>Storage:</strong> Your budget data lives in your own Google Sheet, in your own Google Drive. The selected sheet's ID and name are cached in your browser's localStorage so the app can reconnect on next launch.
+      <br /><strong>Sharing:</strong> Not shared with any third party. The data travels directly between your browser and Google's APIs.
+    </li>
+  </ul>
+
+  <h2>What Budgie does not do with Google user data</h2>
+  <ul>
+    <li>We do not transfer Google user data to any server operated by Budgie or any third party.</li>
+    <li>We do not sell Google user data.</li>
+    <li>We do not use Google user data for advertising, retargeting, or credit-worthiness purposes.</li>
+    <li>We do not use Google user data to develop, improve, or train generalized or non-personalized AI/ML models.</li>
+    <li>We do not allow humans to read Google user data, except (a) with your explicit consent, (b) where necessary for security purposes such as investigating abuse, (c) to comply with applicable law, or (d) where the data is aggregated and used for internal operations consistent with the Google API Services User Data Policy.</li>
+  </ul>
+
+  <h2>Where data is stored</h2>
+  <ul>
+    <li><strong>Your Google Sheet</strong> — every transaction, your monthly budget, and your category list are written into a sheet in your own Google Drive. You own that file. You can edit, share, or delete it directly in Google Sheets at any time.</li>
+    <li><strong>Your browser's localStorage</strong> — Budgie caches your selected sheet ID, sheet name, and the name/email/photo of your last-signed-in profile so the app can re-open with one tap. This data never leaves your device.</li>
+  </ul>
+
+  <h2>Third parties</h2>
+  <p>
+    Budgie talks directly to Google's APIs (Sheets, Drive, Picker, Identity) from your
+    browser. Google's own privacy policy governs how Google handles those API calls.
+    The app loads two static assets from Google Fonts and Cloudflare's CDN
+    (Chart.js); these requests are subject to those providers' standard privacy
+    practices. No analytics, no advertising trackers, no third-party scripts beyond
+    those listed.
+  </p>
+
+  <h2>Cookies</h2>
+  <p>
+    Budgie does not set any cookies. Google may set cookies on its own domains during
+    sign-in; those are not under our control and are described in Google's policies.
+  </p>
+
+  <h2>Data deletion</h2>
+  <p>
+    To remove all Budgie data:
+  </p>
+  <ul>
+    <li>Delete the spreadsheet from your Google Drive (or rows within it).</li>
+    <li>Visit <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> and revoke Budgie's access. This invalidates any cached tokens.</li>
+    <li>Clear browser data for the app's domain.</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>
+    Budgie is not directed to children under 13 and we don't knowingly collect data
+    from them.
+  </p>
+
+  <h2>Changes</h2>
+  <p>
+    If this policy materially changes, the "Effective" date above will update. Since
+    Budgie doesn't have user accounts, we can't notify you directly — please re-read
+    if you care about the wording.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    Budgie is hosted at <a href="https://budgit.3218i.com">budgit.3218i.com</a>.
+    Questions: open an issue at <a href="https://github.com/kelly9968/budgit">github.com/kelly9968/budgit</a>.
+  </p>
+
+  <div class="footer">
+    <p>
+      <a href="https://budgit.3218i.com/">← Back to Budgie</a>
+      &nbsp;·&nbsp;
+      <a href="/terms.html">Terms of Service</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>

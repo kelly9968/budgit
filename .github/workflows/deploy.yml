@@ -1,0 +1,56 @@
+name: Deploy budgie
+
+# Auto-deploys the demo/ directory to CapRover whenever code on the
+# `demo` branch changes. Mirrors what demo/deploy.sh does locally:
+# tarball just the demo/ contents (so captain-definition is at the
+# tar root) and ship it to the CapRover server.
+#
+# Required GitHub repo secret:
+#   CAPROVER_PASSWORD — your CapRover admin password
+on:
+  push:
+    branches: [demo]
+    paths:
+      - 'demo/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch: # lets you trigger a deploy manually from the Actions tab
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build deploy tarball
+        run: |
+          cd demo
+          tar -cf /tmp/budgie.tar \
+            --exclude='./node_modules' \
+            --exclude='./dist' \
+            --exclude='./.env' \
+            --exclude='./.env.local' \
+            --exclude='./.git' \
+            --exclude='./.DS_Store' \
+            --exclude='./caprover-deploy' \
+            --exclude='./deploy.sh' \
+            .
+          # Sanity-check captain-definition is at the tar root —
+          # CapRover bails out if it's nested.
+          tar -tf /tmp/budgie.tar | grep -q '^./captain-definition$' || {
+            echo "captain-definition missing from tarball root"
+            exit 1
+          }
+          du -h /tmp/budgie.tar
+
+      - name: Install CapRover CLI
+        run: npm install -g caprover
+
+      - name: Deploy to CapRover
+        run: |
+          caprover deploy \
+            --caproverUrl https://captain.3218i.com \
+            --caproverPassword "${{ secrets.CAPROVER_PASSWORD }}" \
+            --appName budgie \
+            --tarFile /tmp/budgie.tar
