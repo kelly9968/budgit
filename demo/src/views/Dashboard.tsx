@@ -199,6 +199,62 @@ function ChartTypeToggle({
 }
 
 /* ─────────────────────────────────────────────────────────────────────
+ * FlipCard — wraps a dash-card with a 3D flip. The (i) button on each
+ * face toggles flipped state; clicking elsewhere on the card does
+ * nothing. Card visuals (background, border, shadow, border-radius)
+ * live on the outer; padding lives on each face so the back face's
+ * absolutely-positioned overlay sizes the same as the front.
+ * ──────────────────────────────────────────────────────────────────── */
+function FlipCard({
+  frontClass = '',
+  backClass = '',
+  back,
+  children,
+}: {
+  frontClass?: string;
+  backClass?: string;
+  back: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const [flipped, setFlipped] = useState(false);
+  const toggle = () => setFlipped((f) => !f);
+  return (
+    <div className="dash-card dash-card-flip">
+      {/* The button lives outside the rotating inner so it sits above
+          the 3D-transformed faces (preserve-3d ignores plain z-index)
+          and stays clickable in either state. */}
+      <button
+        type="button"
+        className="dash-flip-btn"
+        onClick={toggle}
+        aria-label={flipped ? 'Hide explanation' : 'Explain this card'}
+        aria-pressed={flipped}
+      >
+        {flipped ? (
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4.5 4.5 L11.5 11.5 M11.5 4.5 L4.5 11.5" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.5" />
+            <path d="M8 7 L8 11.5" />
+            <circle cx="8" cy="4.6" r="0.9" fill="currentColor" stroke="none" />
+          </svg>
+        )}
+      </button>
+      <div className={`dash-flip-inner ${flipped ? 'is-flipped' : ''}`}>
+        <div className={`dash-flip-face dash-flip-front ${frontClass}`} inert={flipped}>
+          {children}
+        </div>
+        <div className={`dash-flip-face dash-flip-back ${backClass}`} inert={!flipped}>
+          {back}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
  * Hero card — eyebrow + big amount + on-track pill + progress bar with
  * notch + trend chip + EOM chip + 3-tile metric row.
  * ──────────────────────────────────────────────────────────────────── */
@@ -220,7 +276,7 @@ function HeroCard({
   const spentPct = Math.min(100, Math.max(0, (m.spent / Math.max(budget, 1)) * 100));
 
   return (
-    <div className="dash-card dash-hero-card">
+    <FlipCard frontClass="dash-hero-card" back={<HeroBack m={m} budget={budget} />}>
       <div className="dash-hero-head">
         <div className="dash-lbl">Spent this month</div>
         {editingBudget ? (
@@ -323,6 +379,48 @@ function HeroCard({
           color={leftDay >= 0 ? 'good' : 'bad'}
         />
       </div>
+    </FlipCard>
+  );
+}
+
+function HeroBack({
+  m,
+  budget,
+}: {
+  m: ReturnType<typeof computeDashboard>;
+  budget: number;
+}) {
+  const daysLeft = Math.max(m.daysInMonth - m.todayDay, 0);
+  return (
+    <div className="dash-explain">
+      <div className="dash-explain-title">How the numbers work</div>
+      <p>
+        You've spent <b>{fmtUSD(m.spent, 0)}</b> of your{' '}
+        <b>{fmtUSD(budget, 0)}</b> budget over the first{' '}
+        <b>{m.todayDay}</b> day{m.todayDay === 1 ? '' : 's'} of the month.
+      </p>
+      <div className="dash-explain-formula">
+        <b>Target / day</b> = budget ÷ days in month
+        <br />
+        = {fmtUSD(budget, 0)} ÷ {m.daysInMonth} = {fmtUSD(m.dailyRate, 0)}
+      </div>
+      <div className="dash-explain-formula">
+        <b>Pace</b> = (last 7-day avg + month-to-date avg) ÷ 2
+        <br />
+        = ({fmtUSD(m.avg7, 0)} + {fmtUSD(m.avgM, 0)}) ÷ 2 ={' '}
+        {fmtUSD(m.blended, 0)} / day
+      </div>
+      <div className="dash-explain-formula">
+        <b>EOM forecast</b> = spent + pace × days left
+        <br />
+        = {fmtUSD(m.spent, 0)} + {fmtUSD(m.blended, 0)} × {daysLeft} ={' '}
+        <b>{fmtUSD(m.eom, 0)}</b>
+      </div>
+      <p className="dash-explain-note">
+        The <b>notch</b> on the progress bar is where you'd be if you spent
+        exactly your daily target each day. Left of it = ahead; right of it
+        = behind.
+      </p>
     </div>
   );
 }
@@ -359,7 +457,7 @@ function LineChartCard({
   setAssumed: (n: number) => void;
 }) {
   return (
-    <div className="dash-card">
+    <FlipCard back={<LineChartBack m={m} budget={budget} assumed={assumed} />}>
       <ChartCanvas metrics={m} budget={budget} assumed={assumed} />
       <div className="dash-legend">
         <span><span className="dot" style={{ background: C_ACTUAL }} /> Actual</span>
@@ -380,6 +478,59 @@ function LineChartCard({
         />
         <span className="dash-slider-val">${assumed} / day</span>
       </div>
+    </FlipCard>
+  );
+}
+
+function LineChartBack({
+  m,
+  budget,
+  assumed,
+}: {
+  m: ReturnType<typeof computeDashboard>;
+  budget: number;
+  assumed: number;
+}) {
+  const daysLeft = Math.max(m.daysInMonth - m.todayDay, 0);
+  const sliderEom = Math.round(m.spent + assumed * daysLeft);
+  return (
+    <div className="dash-explain">
+      <div className="dash-explain-title">Reading the chart</div>
+      <ul className="dash-explain-list">
+        <li>
+          <span className="dot" style={{ background: C_ACTUAL }} />
+          <span>
+            <b>Actual</b> — running total of what you've spent so far.
+          </span>
+        </li>
+        <li>
+          <span className="dot dot-dashed" style={{ borderColor: C_FORECAST }} />
+          <span>
+            <b>Forecast</b> — where you'll likely end up if you keep your
+            current pace ({fmtUSD(m.blended, 0)}/day).
+          </span>
+        </li>
+        <li>
+          <span className="dot dot-dashed" style={{ borderColor: C_SLIDER }} />
+          <span>
+            <b>Slider</b> — a "what if" line. Drag the slider to see where
+            you'd land at any daily spend. At ${assumed}/day you'd finish
+            around <b>{fmtUSD(sliderEom, 0)}</b>.
+          </span>
+        </li>
+        <li>
+          <span className="dot dot-dashed" style={{ borderColor: C_BUDGET }} />
+          <span>
+            <b>Budget</b> — a straight line from $0 to{' '}
+            <b>{fmtUSD(budget, 0)}</b> over the month. Stay below it and
+            you're within budget.
+          </span>
+        </li>
+      </ul>
+      <p className="dash-explain-note">
+        The forecast and slider lines start from today and project forward;
+        the actual line stops at today.
+      </p>
     </div>
   );
 }
@@ -444,16 +595,16 @@ function PieCard({
 
   if (totals.length === 0) {
     return (
-      <div className="dash-card">
+      <FlipCard back={<PieBack totals={[]} total={0} />}>
         <div className="dash-future-note" style={{ marginTop: 0 }}>
           No transactions logged for this month.
         </div>
-      </div>
+      </FlipCard>
     );
   }
 
   return (
-    <div className="dash-card">
+    <FlipCard back={<PieBack totals={totals} total={total} />}>
       <div className="dash-pie-wrap">
         <canvas ref={ref} />
         <div className="dash-pie-center">
@@ -475,6 +626,37 @@ function PieCard({
           );
         })}
       </ul>
+    </FlipCard>
+  );
+}
+
+function PieBack({
+  totals,
+  total,
+}: {
+  totals: { name: string; amount: number; pct: number }[];
+  total: number;
+}) {
+  const top = totals[0];
+  return (
+    <div className="dash-explain">
+      <div className="dash-explain-title">How spending breaks down</div>
+      <p>
+        Each slice is one category. Slice size = that category's share of
+        your total spend this month ({fmtUSD(total, 0)}).
+      </p>
+      <div className="dash-explain-formula">
+        <b>% of total</b> = category total ÷ month total × 100
+      </div>
+      {top && (
+        <p>
+          Biggest category so far: <b>{top.name}</b> at{' '}
+          <b>{fmtUSD(top.amount, 0)}</b> ({Math.round(top.pct * 100)}%).
+        </p>
+      )}
+      <p className="dash-explain-note">
+        The legend list is sorted by amount, biggest first.
+      </p>
     </div>
   );
 }
@@ -497,7 +679,7 @@ function DailyBarCard({
 }) {
   const isStacked = byCategory !== null && orderedCategories.length > 0;
   return (
-    <div className="dash-card">
+    <FlipCard back={<DailyBarBack m={m} isStacked={isStacked} />}>
       <DailyBarChart
         metrics={m}
         byCategory={byCategory}
@@ -528,6 +710,46 @@ function DailyBarCard({
           </>
         )}
       </div>
+    </FlipCard>
+  );
+}
+
+function DailyBarBack({
+  m,
+  isStacked,
+}: {
+  m: ReturnType<typeof computeDashboard>;
+  isStacked: boolean;
+}) {
+  return (
+    <div className="dash-explain">
+      <div className="dash-explain-title">Reading the bars</div>
+      <p>
+        Each bar is one day's total spending. The dashed horizontal line is
+        your daily target — budget ÷ days in month ={' '}
+        <b>{fmtUSD(m.dailyRate, 0)}/day</b>.
+      </p>
+      {isStacked ? (
+        <p>
+          Bars are split by category, using the same colors as the pie. A
+          taller bar means a bigger day; a tall stack of one color means
+          most of that day went to one category.
+        </p>
+      ) : (
+        <p>
+          <span className="dot" style={{ background: C_UNDER, display: 'inline-block', verticalAlign: 'middle', marginRight: 4 }} />
+          <b>Green</b> = at or under target.{' '}
+          <span className="dot" style={{ background: C_OVER, display: 'inline-block', verticalAlign: 'middle', marginRight: 4, marginLeft: 8 }} />
+          <b>Red</b> = over target.
+        </p>
+      )}
+      <div className="dash-explain-formula">
+        <b>7-day avg line</b> = average of the surrounding 7 days, smoothed
+        so a single big day doesn't dominate the trend.
+      </div>
+      <p className="dash-explain-note">
+        Future days aren't drawn — the chart stops at today.
+      </p>
     </div>
   );
 }
@@ -546,7 +768,11 @@ function ChartCanvas({
   assumed: number;
 }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
+  const chartRef = useRef<Chart | null>(null);
 
+  // Build / rebuild the chart only when the underlying metrics or budget
+  // change (e.g., month-switch, budget edit, txn add). Slider movement
+  // (assumed) is applied via a cheap dataset update in a separate effect.
   useEffect(() => {
     if (!ref.current) return;
     const m = metrics;
@@ -665,8 +891,26 @@ function ChartCanvas({
       },
     });
 
-    return () => chart.destroy();
-  }, [metrics, budget, assumed]);
+    chartRef.current = chart;
+    return () => {
+      chart.destroy();
+      chartRef.current = null;
+    };
+  }, [metrics, budget]);
+
+  // Slider scenario — patch dataset 2 in place; no chart rebuild.
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const m = metrics;
+    const sData = Array.from({ length: m.daysInMonth }, (_, i) => {
+      const d = i + 1;
+      if (d < m.todayDay) return null;
+      return Math.round((m.spent + assumed * (d - m.todayDay)) * 100) / 100;
+    });
+    chart.data.datasets[2].data = sData;
+    chart.update('none');
+  }, [assumed, metrics]);
 
   return (
     <div className="dash-chart-wrap">
