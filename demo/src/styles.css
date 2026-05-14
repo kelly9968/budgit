@@ -2726,6 +2726,9 @@ input, button, textarea, select {
   inset: 0;
   transform: rotateY(180deg);
   background: var(--card);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 /* Hero card variant: front face provides the hero flex layout (the
    .dash-hero-card rule applies its padding + flex here instead of on
