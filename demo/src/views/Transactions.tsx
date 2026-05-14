@@ -1,7 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCategory, type Category } from '../lib/categories';
 import { fmtUSD } from '../lib/budget';
-import { useSwipe } from '../lib/swipe';
 import type { Transaction } from '../lib/types';
 
 type Props = {
@@ -36,6 +35,76 @@ export function Transactions({ txns, categories, loading, onSelect, onDelete }: 
   // Row id (composed of date+row) currently revealing its delete
   // action. Only one row open at a time — like iOS Mail.
   const [openRowId, setOpenRowId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  // One delegated swipe listener for the whole list — beats wiring a
+  // useSwipe hook per row, which was the dominant mount cost on mobile
+  // when the list was long. We walk from the touch target up to the
+  // nearest [data-row-id] wrapper and apply open/close to that row.
+  useEffect(() => {
+    const root = listRef.current;
+    if (!root) return;
+    let startX = 0;
+    let startY = 0;
+    let dx = 0;
+    let dy = 0;
+    let tracking = false;
+    let rowId: string | null = null;
+
+    const findRow = (target: EventTarget | null): string | null => {
+      let node = target as HTMLElement | null;
+      while (node && node !== root) {
+        if (node.dataset?.rowId) return node.dataset.rowId;
+        node = node.parentElement;
+      }
+      return null;
+    };
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) {
+        tracking = false;
+        return;
+      }
+      const id = findRow(e.target);
+      if (!id) {
+        tracking = false;
+        return;
+      }
+      tracking = true;
+      rowId = id;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dx = 0;
+      dy = 0;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!tracking) return;
+      dx = e.touches[0].clientX - startX;
+      dy = e.touches[0].clientY - startY;
+    };
+    const onEnd = () => {
+      if (!tracking) return;
+      tracking = false;
+      const id = rowId;
+      rowId = null;
+      if (!id) return;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (dx < 0) setOpenRowId(id);
+        else setOpenRowId((cur) => (cur === id ? null : cur));
+      }
+    };
+
+    root.addEventListener('touchstart', onStart, { passive: true });
+    root.addEventListener('touchmove', onMove, { passive: true });
+    root.addEventListener('touchend', onEnd, { passive: true });
+    root.addEventListener('touchcancel', onEnd, { passive: true });
+    return () => {
+      root.removeEventListener('touchstart', onStart);
+      root.removeEventListener('touchmove', onMove);
+      root.removeEventListener('touchend', onEnd);
+      root.removeEventListener('touchcancel', onEnd);
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -77,7 +146,7 @@ export function Transactions({ txns, categories, loading, onSelect, onDelete }: 
     : `All transactions · ${txns.length}`;
 
   return (
-    <div className="tx">
+    <div className="tx" ref={listRef}>
       <div className="tx-controls">
         <div className="tx-search-wrap">
           <SearchIcon />
@@ -157,9 +226,9 @@ export function Transactions({ txns, categories, loading, onSelect, onDelete }: 
                 <TxRow
                   key={id}
                   tx={t}
+                  rowId={id}
                   category={getCategory(t.cat, categories)}
                   isOpen={openRowId === id}
-                  onOpen={() => setOpenRowId(id)}
                   onClose={() => setOpenRowId(null)}
                   onSelect={onSelect}
                   onDelete={onDelete}
@@ -184,29 +253,23 @@ function SearchIcon() {
 
 function TxRow({
   tx,
+  rowId,
   category,
   isOpen,
-  onOpen,
   onClose,
   onSelect,
   onDelete,
 }: {
   tx: Transaction;
+  rowId: string;
   category: Category;
   isOpen: boolean;
-  onOpen: () => void;
   onClose: () => void;
   onSelect: (tx: Transaction) => void;
   onDelete: (tx: Transaction) => Promise<void>;
 }) {
-  const wrapRef = useRef<HTMLDivElement | null>(null);
   const [deleting, setDeleting] = useState(false);
   const editable = tx._row !== undefined;
-
-  useSwipe(wrapRef, {
-    onLeft: () => editable && onOpen(),
-    onRight: () => onClose(),
-  });
 
   const handleClick = () => {
     if (isOpen) {
@@ -228,7 +291,7 @@ function TxRow({
 
   return (
     <div
-      ref={wrapRef}
+      data-row-id={editable ? rowId : undefined}
       className={`tx-row-wrap ${isOpen ? 'open' : ''}`}
     >
       <button
