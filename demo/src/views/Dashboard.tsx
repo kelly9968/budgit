@@ -219,40 +219,38 @@ function FlipCard({
   const [flipped, setFlipped] = useState(false);
   const toggle = () => setFlipped((f) => !f);
   return (
-    <div className={`dash-card dash-card-flip ${flipped ? 'is-flipped' : ''}`}>
-      <div className={`dash-flip-front ${frontClass}`} aria-hidden={flipped}>
-        <FlipBtn flipped={flipped} onClick={toggle} />
-        {children}
-      </div>
-      <div className={`dash-flip-back ${backClass}`} aria-hidden={!flipped}>
-        <FlipBtn flipped={flipped} onClick={toggle} />
-        {back}
+    <div className="dash-card dash-card-flip">
+      {/* The button lives outside the rotating inner so it sits above
+          the 3D-transformed faces (preserve-3d ignores plain z-index)
+          and stays clickable in either state. */}
+      <button
+        type="button"
+        className="dash-flip-btn"
+        onClick={toggle}
+        aria-label={flipped ? 'Hide explanation' : 'Explain this card'}
+        aria-pressed={flipped}
+      >
+        {flipped ? (
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4.5 4.5 L11.5 11.5 M11.5 4.5 L4.5 11.5" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.5" />
+            <path d="M8 7 L8 11.5" />
+            <circle cx="8" cy="4.6" r="0.9" fill="currentColor" stroke="none" />
+          </svg>
+        )}
+      </button>
+      <div className={`dash-flip-inner ${flipped ? 'is-flipped' : ''}`}>
+        <div className={`dash-flip-face dash-flip-front ${frontClass}`} inert={flipped}>
+          {children}
+        </div>
+        <div className={`dash-flip-face dash-flip-back ${backClass}`} inert={!flipped}>
+          {back}
+        </div>
       </div>
     </div>
-  );
-}
-
-function FlipBtn({ flipped, onClick }: { flipped: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      className="dash-flip-btn"
-      onClick={onClick}
-      aria-label={flipped ? 'Hide explanation' : 'Explain this card'}
-      aria-pressed={flipped}
-    >
-      {flipped ? (
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M4 4 L12 12 M12 4 L4 12" />
-        </svg>
-      ) : (
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <circle cx="8" cy="8" r="6.5" />
-          <path d="M8 7 L8 11.5" />
-          <circle cx="8" cy="4.6" r="0.9" fill="currentColor" stroke="none" />
-        </svg>
-      )}
-    </button>
   );
 }
 

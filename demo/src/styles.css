@@ -2706,14 +2706,16 @@ input, button, textarea, select {
 .dash-card-flip {
   position: relative;
   padding: 0;
+}
+.dash-flip-inner {
+  position: relative;
   transform-style: preserve-3d;
   transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.dash-card-flip.is-flipped {
+.dash-flip-inner.is-flipped {
   transform: rotateY(180deg);
 }
-.dash-flip-front,
-.dash-flip-back {
+.dash-flip-face {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   padding: var(--s-4);
@@ -2734,39 +2736,49 @@ input, button, textarea, select {
   flex-direction: column;
   gap: var(--s-3);
 }
+/* Hero card has its own top-right element (Budget button); shift it
+   left so the flip icon doesn't overlap. */
+.dash-card-flip .dash-hero-head {
+  padding-right: 28px;
+}
 
-/* Info / close button — top-right of each face */
+/* Info / close button — small, muted, outside the rotating inner so
+   it sits above the 3D-transformed faces and stays clickable. */
 .dash-flip-btn {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 26px;
-  height: 26px;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  border: 1px solid var(--hair);
-  background: var(--card);
-  color: var(--ink2);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink3);
   cursor: pointer;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--dur-fast) var(--ease-out),
+  opacity: 0.65;
+  transition: opacity var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out);
-  z-index: 2;
+  z-index: 3;
 }
-.dash-flip-btn:hover {
+.dash-flip-btn:hover,
+.dash-flip-btn:focus-visible {
+  opacity: 1;
   background: var(--surf);
   color: var(--ink);
-  border-color: var(--ink3);
+  border-color: var(--hair);
 }
 .dash-flip-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.6;
+  stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
