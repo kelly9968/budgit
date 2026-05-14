@@ -1,15 +1,15 @@
 name: Deploy budgie
 
-# Auto-deploys the demo/ directory to CapRover whenever code on the
-# `demo` branch changes. Mirrors what demo/deploy.sh does locally:
-# tarball just the demo/ contents (so captain-definition is at the
-# tar root) and ship it to the CapRover server.
+# Auto-deploys the demo/ directory to CapRover whenever code on
+# `main` changes. Mirrors what demo/deploy.sh does locally: tarball
+# just the demo/ contents (so captain-definition is at the tar root)
+# and ship it to the CapRover server.
 #
 # Required GitHub repo secret:
 #   CAPROVER_PASSWORD — your CapRover admin password
 on:
   push:
-    branches: [demo]
+    branches: [main]
     paths:
       - 'demo/**'
       - '.github/workflows/deploy.yml'
