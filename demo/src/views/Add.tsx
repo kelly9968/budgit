@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { getCategory, type Category } from '../lib/categories';
 import { NewCategoryModal } from './NewCategoryModal';
 import { ParseReviewModal } from './ParseReviewModal';
@@ -42,6 +42,10 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  // Whimsy: nonce remounts the glyph-toss burst; `justAdded` briefly
+  // morphs the submit button to its "landed" state.
+  const [celebrate, setCelebrate] = useState<{ key: number; icon: string } | null>(null);
+  const [justAdded, setJustAdded] = useState(false);
 
   // AI parse state
   const cameraRef = useRef<HTMLInputElement | null>(null);
@@ -76,6 +80,11 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
       setFlash(`$${amt.toFixed(2)} added to ${cat}`);
       setAmount('');
       setNote('');
+      // Celebrate: toss the category glyph, swell the button, buzz once.
+      setCelebrate((c) => ({ key: (c?.key ?? 0) + 1, icon: selectedCat.icon }));
+      setJustAdded(true);
+      navigator.vibrate?.(12);
+      setTimeout(() => setJustAdded(false), 500);
       setTimeout(() => setFlash(null), 2200);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save');
@@ -342,8 +351,13 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
       {error && <div className="signin-error">{error}</div>}
       {flash && <div className="add-flash">{flash}</div>}
 
-      <button type="submit" className="add-submit" disabled={working}>
-        {working ? 'Adding…' : 'Add transaction'}
+      {celebrate && <Celebration key={celebrate.key} icon={celebrate.icon} />}
+      <button
+        type="submit"
+        className={`add-submit ${justAdded ? 'done' : ''}`}
+        disabled={working}
+      >
+        {working ? 'Adding…' : justAdded ? 'Added ✓' : 'Add transaction'}
       </button>
 
       {showModal && (
@@ -363,6 +377,38 @@ export function Add({ categories, onAdd, onBulkAdd, onAddCategory }: Props) {
         />
       )}
     </form>
+  );
+}
+
+// A short-lived burst of the category glyph, fanning up and out from the
+// submit button. Keyed on a nonce by the caller so each add replays it.
+const CELEBRATE_BITS = [
+  { x: -46, rise: 74, rot: -28, delay: 0 },
+  { x: -22, rise: 104, rot: -12, delay: 40 },
+  { x: 0, rise: 120, rot: 0, delay: 70 },
+  { x: 22, rise: 104, rot: 14, delay: 40 },
+  { x: 46, rise: 76, rot: 26, delay: 10 },
+  { x: -9, rise: 92, rot: -8, delay: 95 },
+  { x: 13, rise: 88, rot: 12, delay: 115 },
+];
+function Celebration({ icon }: { icon: string }) {
+  return (
+    <div className="add-celebrate" aria-hidden="true">
+      {CELEBRATE_BITS.map((b, i) => (
+        <span
+          key={i}
+          className="add-celebrate-bit"
+          style={{
+            '--x': `${b.x}px`,
+            '--rise': `${b.rise}px`,
+            '--rot': `${b.rot}deg`,
+            '--delay': `${b.delay}ms`,
+          } as CSSProperties}
+        >
+          {icon}
+        </span>
+      ))}
+    </div>
   );
 }
 

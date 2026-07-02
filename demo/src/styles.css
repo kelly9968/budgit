@@ -3439,6 +3439,87 @@ input, button, textarea, select {
 /* ════════════════════════════════════════════════════════════════════
    Reduced-motion users
    ════════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════════
+   Whimsy & fit-and-finish
+   Small, restrained motion moments that reward the everyday gestures —
+   logging a spend, switching a tab, watching a number land. Kept in the
+   warm editorial register (paper toss, gentle springs). Everything here
+   is silenced by the reduced-motion killswitch immediately below.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Add-transaction celebration — a little toss of the category glyph, in
+   the spirit of a receipt fluttering up. Anchored over the submit button;
+   .add is the <form>, made a positioning context for the burst layer. */
+.add { position: relative; }
+.add-celebrate {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.add-celebrate-bit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 20px;
+  line-height: 1;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: celebrate-toss 900ms var(--ease-out) both;
+  animation-delay: var(--delay, 0ms);
+}
+@keyframes celebrate-toss {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.4) rotate(0deg); }
+  18%  { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform:
+      translate(calc(-50% + var(--x, 0px)), calc(-50% - var(--rise, 90px)))
+      scale(0.9) rotate(var(--rot, 0deg));
+  }
+}
+
+/* Submit button success flourish — a brief swell to green as the row lands */
+.add-submit.done {
+  background: var(--green);
+  animation: submit-pop 440ms var(--ease-out);
+}
+@keyframes submit-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+/* Tactile press — supersedes the earlier translateY(0) active rule */
+.add-submit:active:not(:disabled) { transform: scale(0.985); }
+
+/* Category pick — a quick, springy acknowledgement on selection */
+.add-cat.sel { animation: cat-pop 340ms var(--ease-out); }
+@keyframes cat-pop {
+  0%   { transform: translateY(0) scale(1); }
+  45%  { transform: translateY(-2px) scale(1.05); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* Tab bar — the active icon gives a little hop when selected, plus a
+   satisfying dip on press */
+.tabbar-btn.active .tabbar-ico { animation: tab-pop 380ms var(--ease-out); }
+@keyframes tab-pop {
+  0%   { transform: translateY(0) scale(1); }
+  35%  { transform: translateY(-2px) scale(1.18); }
+  100% { transform: translateY(0) scale(1); }
+}
+.tabbar-btn:active .tabbar-ico { transform: scale(0.9); }
+
+/* Empty state — the cipher breathes gently rather than sitting inert */
+.tx-empty::before { animation: empty-float 4s var(--ease) infinite; }
+@keyframes empty-float {
+  0%, 100% { transform: translateY(0);    opacity: 0.35; }
+  50%      { transform: translateY(-4px); opacity: 0.5; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

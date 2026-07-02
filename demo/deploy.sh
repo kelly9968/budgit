@@ -1,4 +1,5 @@
 #!/bin/bash
+"$HOME/code/caprover-control/scripts/caprover-login.sh" 2>/dev/null || true  # auto-refresh CapRover token
 # ─────────────────────────────────────────────────────────────────────
 # Budgie deploy script
 #

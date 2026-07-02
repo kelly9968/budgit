@@ -50,6 +50,43 @@ function effectiveToday(sel: SelectedMonth): Date {
   return new Date(sel.year, sel.month, 1);
 }
 
+// Counts a value up from 0 with an ease-out on mount (and animates
+// between values when it changes — e.g. flipping months). Gives the big
+// serif hero number an editorial "reveal" rather than a hard cut.
+function useCountUp(target: number, duration = 700) {
+  const [val, setVal] = useState(0);
+  const valRef = useRef(0);
+  useEffect(() => {
+    const reduce =
+      typeof matchMedia !== 'undefined' &&
+      matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const from = valRef.current;
+    if (reduce || from === target) {
+      valRef.current = target;
+      setVal(target);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const step = (t: number) => {
+      const p = Math.min(1, (t - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const cur = from + (target - from) * eased;
+      valRef.current = cur;
+      setVal(cur);
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return val;
+}
+
+function CountUpAmount({ value }: { value: number }) {
+  const v = useCountUp(value);
+  return <>{fmtUSD(Math.round(v), 0)}</>;
+}
+
 export function Dashboard({ txns, budget, categories, onBudgetChange, selectedMonth }: Props) {
   const sel = selectedMonth;
   const [chartType, setChartType] = useState<ChartType>('line');
@@ -318,7 +355,7 @@ function HeroCard({
         )}
       </div>
 
-      <div className="dash-hero-amt">{fmtUSD(m.spent, 0)}</div>
+      <div className="dash-hero-amt"><CountUpAmount value={m.spent} /></div>
 
       <div
         className={`dash-pill ${
