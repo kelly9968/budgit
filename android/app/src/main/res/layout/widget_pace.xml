@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+        <TextView
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:fontFamily="serif" android:text="budgie" android:textColor="#FF1A1610" android:textSize="18sp" />
+        <TextView
+            android:id="@+id/pace_month" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:letterSpacing="0.08" android:text="THIS MONTH" android:textColor="#FF9C907C" android:textSize="8sp" android:textStyle="bold" />
+        <TextView
+            android:id="@+id/widget_refresh" android:layout_width="34dp" android:layout_height="34dp"
+            android:gravity="center" android:text="↻" android:textColor="#FF3B5E8E" android:textSize="18sp" />
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center_vertical" android:orientation="horizontal">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:letterSpacing="0.12" android:text="SPENT" android:textColor="#FF9C907C" android:textSize="8sp" />
+            <TextView
+                android:id="@+id/pace_spent" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:fontFamily="serif" android:text="$0" android:textColor="#FF1A1610" android:textSize="31sp" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="end" android:orientation="vertical">
+            <TextView
+                android:id="@+id/pace_status" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:background="#1A6B8C4A" android:letterSpacing="0.08" android:paddingHorizontal="8dp" android:paddingVertical="4dp"
+                android:text="ON TRACK" android:textColor="#FF6B8C4A" android:textSize="8sp" android:textStyle="bold" />
+            <TextView
+                android:id="@+id/pace_left" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:paddingTop="7dp" android:text="$0 left" android:textColor="#FF5A4F3E" android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/pace_progress" style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent" android:layout_height="8dp" android:max="100"
+        android:progressDrawable="@drawable/widget_progress" />
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal" android:paddingTop="7dp">
+        <TextView
+            android:id="@+id/pace_budget" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:text="Budget $0" android:textColor="#FF5A4F3E" android:textSize="9sp" />
+        <TextView
+            android:id="@+id/widget_updated" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="TAP TO CONNECT" android:textColor="#FF9C907C" android:textSize="8sp" />
+    </LinearLayout>
+</LinearLayout>
+
