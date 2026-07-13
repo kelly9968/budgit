@@ -185,6 +185,15 @@ No code, no script editor, no deployment steps. Entirely mobile-friendly.
 | Install | PWA via Safari "Add to Home Screen" |
 | Offline | Service worker caches app shell |
 
+### Native Android
+
+`android/` contains the native Compose client, signed-release workflow, and Month Pace / Recent
+Spend home-screen widgets. See [`android/README.md`](android/README.md) for Google authorization,
+configuration, build, testing, and installation details.
+
+The reviewed signed APK is published at `/downloads/Budgie.apk`; adjacent checksum and JSON
+metadata files identify the exact release.
+
 ---
 
 ## Planned improvements
