@@ -12,21 +12,25 @@ import {
   addTransaction,
   addTransactionsBulk,
   deleteTransaction,
-  ensureSchema,
   listTransactions,
   loadAppMeta,
+  provisionOrValidate,
   saveAppMeta,
   sheetUrl,
   updateTransaction,
+  type AppMeta,
 } from './api/sheets';
+import { SheetConnectionModal } from './views/SheetConnectionModal';
 import {
   clearConfig,
   clearLastProfile,
   DEFAULT_BUDGET,
   loadConfig,
   loadLastProfile,
+  loadLocalMeta,
   saveConfig,
   saveLastProfile,
+  saveLocalMeta,
   type LocalConfig,
 } from './lib/storage';
 import { DEFAULT_CATEGORIES, type Category } from './lib/categories';
@@ -108,10 +112,9 @@ export function App() {
   if (!config) {
     return (
       <SheetSetup
-        onReady={(sheetId, sheetName) => {
-          const next: LocalConfig = { sheetId, sheetName };
-          saveConfig(auth.profile.sub, next);
-          setConfig(next);
+        onReady={(conn) => {
+          saveConfig(auth.profile.sub, conn);
+          setConfig(conn);
         }}
       />
     );
@@ -121,6 +124,10 @@ export function App() {
     <Main
       auth={auth}
       config={config}
+      onConfigChange={(next) => {
+        saveConfig(auth.profile.sub, next);
+        setConfig(next);
+      }}
       onSwitchSheet={() => {
         clearConfig(auth.profile.sub);
         setConfig(null);
@@ -138,18 +145,28 @@ export function App() {
 function Main({
   auth,
   config,
+  onConfigChange,
   onSwitchSheet,
   onSignOut,
 }: {
   auth: AuthState;
   config: LocalConfig;
+  onConfigChange: (next: LocalConfig) => void;
   onSwitchSheet: () => void;
   onSignOut: () => void;
 }) {
-  const [tab, setTab] = useState<TabId>('add');
+  const canWrite = config.writeEnabled;
+  const [tab, setTab] = useState<TabId>(canWrite ? 'add' : 'dash');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const tabbarRef = useRef<HTMLElement | null>(null);
+
+  // There's no Add tab in read-only mode; hop off it if the connection
+  // flips to read-only while Add is open.
+  useEffect(() => {
+    if (!canWrite && tab === 'add') setTab('dash');
+  }, [canWrite, tab]);
 
   // Selected month — owned at app level so the header can render its
   // month nav even when the active tab is something other than the
@@ -171,11 +188,12 @@ function Main({
   const monthLbl = new Date(selectedMonth.year, selectedMonth.month, 1)
     .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  // Swipe across the tab bar to move between tabs. Order excludes
-  // 'demo' in production; the tab itself is dev-only.
+  // Swipe across the tab bar to move between tabs. 'add' drops out in
+  // read-only mode; 'demo' is dev-only.
+  const writableOrder: TabId[] = canWrite ? ['dash', 'add', 'tx'] : ['dash', 'tx'];
   const tabOrder: TabId[] = import.meta.env.DEV
-    ? ['dash', 'add', 'tx', 'demo']
-    : ['dash', 'add', 'tx'];
+    ? [...writableOrder, 'demo']
+    : writableOrder;
   const goTab = (delta: number) => {
     const i = tabOrder.indexOf(tab);
     const next = tabOrder[i + delta];
@@ -193,45 +211,90 @@ function Main({
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
+  // When the last successful load finished — lets the focus listener pull
+  // external sheet edits without hammering the API on every tab switch.
+  const lastSync = useRef(0);
+  // Only the newest refresh may commit state. A focus refresh, manual
+  // refresh, or sheet-settings change can otherwise race a slower request
+  // and paint data from the previous connection over the current one.
+  const refreshSeq = useRef(0);
+
+  // Persist app metadata (budget/categories) to the sheet's metadata tab
+  // when two-way sync is on, or to the local cache when read-only — the
+  // read-only promise is that we never write the user's spreadsheet.
+  const persistMeta = useCallback(
+    async <K extends keyof AppMeta>(key: K, value: NonNullable<AppMeta[K]>) => {
+      if (config.writeEnabled) {
+        await saveAppMeta(config, key, value);
+      } else {
+        saveLocalMeta(auth.profile.sub, config.sheetId, { [key]: value });
+      }
+    },
+    [config, auth.profile.sub],
+  );
+
   const refresh = useCallback(async () => {
+    const seq = ++refreshSeq.current;
     setLoading(true);
     setError(null);
     try {
-      // Self-heal: brings old sheets (without @metadata tab) up to spec.
-      // Idempotent — no-op when both tabs already exist.
-      await ensureSchema(config.sheetId);
-      const [rows, meta] = await Promise.all([
-        listTransactions(config.sheetId),
-        loadAppMeta(config.sheetId),
-      ]);
+      // Self-heal the app's metadata tab (no-op when read-only or present).
+      await provisionOrValidate(config);
+      const rows = await listTransactions(config);
+      const meta = config.writeEnabled
+        ? await loadAppMeta(config)
+        : loadLocalMeta(auth.profile.sub, config.sheetId);
+      if (seq !== refreshSeq.current) return;
       setTxns(rows);
 
-      // Hydrate budget from sheet, or seed defaults on first run
+      // Hydrate budget, or seed defaults on first run
       if (meta.budget !== undefined) {
         setBudget(meta.budget);
       } else {
         setBudget(DEFAULT_BUDGET);
         // Don't await — non-blocking seed
-        saveAppMeta(config.sheetId, 'budget', DEFAULT_BUDGET).catch(() => {});
+        persistMeta('budget', DEFAULT_BUDGET).catch(() => {});
       }
 
-      // Hydrate categories from sheet, or seed defaults on first run
+      // Hydrate categories, or seed defaults on first run
       if (meta.categories !== undefined && meta.categories.length > 0) {
         setCategories(meta.categories);
       } else {
         setCategories(DEFAULT_CATEGORIES);
-        saveAppMeta(config.sheetId, 'categories', DEFAULT_CATEGORIES).catch(() => {});
+        persistMeta('categories', DEFAULT_CATEGORIES).catch(() => {});
       }
+      lastSync.current = Date.now();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load');
+      if (seq === refreshSeq.current) {
+        setError(e instanceof Error ? e.message : 'Failed to load');
+      }
     } finally {
-      setLoading(false);
-      setFirstLoadDone(true);
+      if (seq === refreshSeq.current) {
+        setLoading(false);
+        setFirstLoadDone(true);
+      }
     }
-  }, [config.sheetId]);
+  }, [config, auth.profile.sub, persistMeta]);
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  // Sheet → app half of two-way flow: when the app regains focus or
+  // visibility, re-read the sheet so edits made directly in Google Sheets
+  // appear without a manual refresh. Debounced to protect API quota.
+  useEffect(() => {
+    const maybeSync = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastSync.current < 30_000) return;
+      refresh();
+    };
+    window.addEventListener('focus', maybeSync);
+    document.addEventListener('visibilitychange', maybeSync);
+    return () => {
+      window.removeEventListener('focus', maybeSync);
+      document.removeEventListener('visibilitychange', maybeSync);
+    };
   }, [refresh]);
 
   // Close the avatar dropdown when the user clicks anywhere outside it.
@@ -250,7 +313,7 @@ function Main({
   const handleAdd = async (tx: Transaction) => {
     setTxns((prev) => [tx, ...prev]);
     try {
-      await addTransaction(config.sheetId, tx);
+      await addTransaction(config, tx);
     } catch (e) {
       setTxns((prev) => prev.filter((t) => t !== tx));
       throw e;
@@ -261,7 +324,7 @@ function Main({
     const prev = budget;
     setBudget(b); // optimistic
     try {
-      await saveAppMeta(config.sheetId, 'budget', b);
+      await persistMeta('budget', b);
     } catch (e) {
       setBudget(prev);
       setError(e instanceof Error ? e.message : 'Could not save budget');
@@ -273,7 +336,7 @@ function Main({
     const prev = categories;
     setCategories(next); // optimistic
     try {
-      await saveAppMeta(config.sheetId, 'categories', next);
+      await persistMeta('categories', next);
     } catch (e) {
       setCategories(prev);
       throw e;
@@ -283,7 +346,7 @@ function Main({
   const handleBulkAdd = async (txs: Transaction[]) => {
     setTxns((prev) => [...txs, ...prev]);
     try {
-      await addTransactionsBulk(config.sheetId, txs);
+      await addTransactionsBulk(config, txs);
       // refetch so we have the canonical sheet state (and stable order)
       await refresh();
     } catch (e) {
@@ -299,7 +362,7 @@ function Main({
     const prev = txns;
     setTxns((p) => p.map((t) => (t._row === next._row ? next : t)));
     try {
-      await updateTransaction(config.sheetId, next._row, next);
+      await updateTransaction(config, next._row, next);
       setEditingTx(null);
     } catch (e) {
       setTxns(prev);
@@ -315,7 +378,7 @@ function Main({
     setTxns((p) => p.filter((t) => t._row !== target._row));
     setEditingTx(null);
     try {
-      await deleteTransaction(config.sheetId, target._row);
+      await deleteTransaction(config, target._row);
       // Refresh so remaining rows pick up their new row numbers (deleting
       // shifts everything below up by 1).
       await refresh();
@@ -390,6 +453,9 @@ function Main({
               <div className="app-menu-section">
                 <div className="app-menu-section-lbl">Sheet</div>
                 <div className="app-menu-section-val">{config.sheetName ?? '—'}</div>
+                <div className="app-menu-section-sub">
+                  {config.txTab} · {canWrite ? 'two-way sync' : 'read-only'}
+                </div>
               </div>
               <button
                 type="button"
@@ -402,6 +468,17 @@ function Main({
                 disabled={loading}
               >
                 {loading ? 'Refreshing…' : 'Refresh'}
+              </button>
+              <button
+                type="button"
+                className="app-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  setSettingsOpen(true);
+                }}
+              >
+                Sheet settings…
               </button>
               <button
                 type="button"
@@ -444,7 +521,7 @@ function Main({
       {error && <div className="app-error">{error}</div>}
 
       <main className="app-main">
-        {tab === 'add' && (
+        {tab === 'add' && canWrite && (
           <Add
             categories={categories}
             onAdd={handleAdd}
@@ -471,6 +548,7 @@ function Main({
               txns={txns}
               categories={categories}
               loading={loading}
+              readOnly={!canWrite}
               onSelect={setEditingTx}
               onDelete={handleEditDelete}
             />
@@ -482,7 +560,7 @@ function Main({
           <DemoData categories={categories} onBulkAdd={handleBulkAdd} />
         )}
 
-        {editingTx && (
+        {editingTx && canWrite && (
           <EditTransactionModal
             tx={editingTx}
             categories={categories}
@@ -492,11 +570,27 @@ function Main({
             onClose={() => setEditingTx(null)}
           />
         )}
+
+        {settingsOpen && (
+          <SheetConnectionModal
+            sheetId={config.sheetId}
+            sheetName={config.sheetName}
+            initial={config}
+            onSave={(conn) => {
+              setSettingsOpen(false);
+              // Persisting a new config re-runs refresh via its config dep.
+              onConfigChange(conn);
+            }}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
       </main>
 
       <nav className="tabbar" ref={tabbarRef}>
         <TabBtn id="dash" current={tab} setTab={setTab} icon={<DashIcon />} label="Dashboard" />
-        <TabBtn id="add" current={tab} setTab={setTab} icon={<AddIcon />} label="Add" />
+        {canWrite && (
+          <TabBtn id="add" current={tab} setTab={setTab} icon={<AddIcon />} label="Add" />
+        )}
         <TabBtn id="tx" current={tab} setTab={setTab} icon={<HistoryIcon />} label="History" />
         {import.meta.env.DEV && (
           <TabBtn id="demo" current={tab} setTab={setTab} icon={<DemoIcon />} label="Demo" />
@@ -591,4 +685,3 @@ function DemoIcon() {
     </svg>
   );
 }
-

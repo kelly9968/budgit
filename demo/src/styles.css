@@ -870,6 +870,12 @@ input, button, textarea, select {
   letter-spacing: -0.005em;
   word-break: break-word;
 }
+.app-menu-section-sub {
+  font-size: 10.5px;
+  color: var(--ink3);
+  margin-top: 1px;
+  letter-spacing: 0.01em;
+}
 .app-menu-sep {
   height: 1px;
   background: var(--hair);
@@ -3435,6 +3441,178 @@ input, button, textarea, select {
   outline: none;
 }
 .parse-row-note:focus { border-color: var(--ink3); }
+
+/* ════════════════════════════════════════════════════════════════════
+   Sheet connection modal — tab picker, column mapping, sync-mode toggle
+   Rides on the shared .modal chrome; conn-* adds the mapping grid, the
+   live row preview, and the two-way switch, all in the parchment register.
+   ════════════════════════════════════════════════════════════════════ */
+.conn-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink2);
+  margin: -10px 0 var(--s-3);
+  word-break: break-word;
+}
+.conn-select {
+  appearance: none;
+  -webkit-appearance: none;
+  /* chevron affordance since we strip the native arrow */
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink3) 50%),
+    linear-gradient(135deg, var(--ink3) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 55%, calc(100% - 15px) 55%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+.conn-newtab { margin-top: 8px; }
+
+.conn-map {
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  background: var(--card);
+  overflow: hidden;
+  box-shadow: var(--shadow-paper);
+}
+.conn-map-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--hair);
+}
+.conn-map-row:last-child { border-bottom: none; }
+.conn-map-lbl {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink2);
+  flex-shrink: 0;
+}
+.conn-req { color: var(--red); margin-left: 2px; }
+.conn-map-sel {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surf);
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  padding: 6px 10px;
+  max-width: 60%;
+  min-width: 96px;
+  outline: none;
+  text-overflow: ellipsis;
+}
+.conn-map-sel:focus { border-color: var(--ink3); }
+.conn-num {
+  width: 72px;
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Live read-back of the first mapped rows */
+.conn-preview {
+  margin-top: var(--s-3);
+  border: 1px dashed var(--hair-strong);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--surf);
+}
+.conn-preview-lbl {
+  font-size: var(--fs-eyebrow);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink3);
+  margin-bottom: 6px;
+}
+.conn-preview-empty {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink3);
+}
+.conn-preview-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  font-size: 12.5px;
+  padding: 3px 0;
+  font-variant-numeric: tabular-nums;
+}
+.conn-preview-date { color: var(--ink3); flex-shrink: 0; }
+.conn-preview-note {
+  flex: 1;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conn-preview-amt { font-weight: 600; color: var(--ink); flex-shrink: 0; }
+
+/* Two-way sync switch */
+.conn-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-3);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow-paper);
+}
+.conn-toggle-text { min-width: 0; }
+.conn-toggle-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+.conn-switch {
+  flex-shrink: 0;
+  width: 46px;
+  height: 27px;
+  border-radius: 999px;
+  border: 1px solid var(--hair-strong);
+  background: var(--surf);
+  padding: 2px;
+  cursor: pointer;
+  transition: background var(--dur-base) var(--ease),
+              border-color var(--dur-base) var(--ease);
+}
+.conn-switch-knob {
+  display: block;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(60, 40, 15, 0.3);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.conn-switch.on {
+  background: var(--green);
+  border-color: var(--green);
+}
+.conn-switch.on .conn-switch-knob { transform: translateX(19px); }
+
+.conn-hint {
+  font-size: 11.5px;
+  color: var(--ink3);
+  line-height: 1.5;
+  margin-top: 6px;
+}
+.conn-warn {
+  margin-top: var(--s-3);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(194, 91, 63, 0.07);
+  border: 1px solid rgba(194, 91, 63, 0.18);
+  color: var(--red);
+}
 
 /* ════════════════════════════════════════════════════════════════════
    Reduced-motion users

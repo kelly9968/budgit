@@ -7,6 +7,9 @@ type Props = {
   txns: Transaction[];
   categories: Category[];
   loading: boolean;
+  // Read-only connection: rows are display-only (no tap-to-edit, no
+  // swipe-to-delete) because the app must never write the sheet.
+  readOnly?: boolean;
   onSelect: (tx: Transaction) => void;
   onDelete: (tx: Transaction) => Promise<void>;
 };
@@ -29,7 +32,7 @@ const fShortDate = (iso: string) => {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-export function Transactions({ txns, categories, loading, onSelect, onDelete }: Props) {
+export function Transactions({ txns, categories, loading, readOnly, onSelect, onDelete }: Props) {
   const [query, setQuery] = useState('');
   const [catFilter, setCatFilter] = useState<string | null>(null);
   // Row id (composed of date+row) currently revealing its delete
@@ -228,6 +231,7 @@ export function Transactions({ txns, categories, loading, onSelect, onDelete }: 
                   tx={t}
                   rowId={id}
                   category={getCategory(t.cat, categories)}
+                  readOnly={readOnly}
                   isOpen={openRowId === id}
                   onClose={() => setOpenRowId(null)}
                   onSelect={onSelect}
@@ -255,6 +259,7 @@ function TxRow({
   tx,
   rowId,
   category,
+  readOnly,
   isOpen,
   onClose,
   onSelect,
@@ -263,13 +268,16 @@ function TxRow({
   tx: Transaction;
   rowId: string;
   category: Category;
+  readOnly?: boolean;
   isOpen: boolean;
   onClose: () => void;
   onSelect: (tx: Transaction) => void;
   onDelete: (tx: Transaction) => Promise<void>;
 }) {
   const [deleting, setDeleting] = useState(false);
-  const editable = tx._row !== undefined;
+  // Rows lose their data-row-id when not editable, which also disables the
+  // list-level swipe-to-delete tracking for them.
+  const editable = !readOnly && tx._row !== undefined;
 
   const handleClick = () => {
     if (isOpen) {
