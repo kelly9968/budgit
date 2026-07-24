@@ -20,6 +20,10 @@ type Props = {
   categories: Category[];
   onBudgetChange: (n: number) => void;
   selectedMonth: SelectedMonth;
+  // Jump straight to that category's filtered History — lets a slice of
+  // curiosity ("what's in Eat out?") resolve in one tap instead of a tab
+  // switch plus a manual filter pick.
+  onCategorySelect?: (name: string) => void;
 };
 
 // Saturated palette for the pie chart (pastels wash out at small sizes).
@@ -87,7 +91,14 @@ function CountUpAmount({ value }: { value: number }) {
   return <>{fmtUSD(Math.round(v), 0)}</>;
 }
 
-export function Dashboard({ txns, budget, categories, onBudgetChange, selectedMonth }: Props) {
+export function Dashboard({
+  txns,
+  budget,
+  categories,
+  onBudgetChange,
+  selectedMonth,
+  onCategorySelect,
+}: Props) {
   const sel = selectedMonth;
   const [chartType, setChartType] = useState<ChartType>('line');
 
@@ -177,7 +188,7 @@ export function Dashboard({ txns, budget, categories, onBudgetChange, selectedMo
       {chartType === 'line' ? (
         <LineChartCard m={m} budget={budget} assumed={assumed} setAssumed={setAssumed} />
       ) : (
-        <PieCard totals={catTotals} categories={categories} />
+        <PieCard totals={catTotals} categories={categories} onCategorySelect={onCategorySelect} />
       )}
 
       <SectionRow title="By day" />
@@ -579,9 +590,11 @@ function LineChartBack({
 function PieCard({
   totals,
   categories,
+  onCategorySelect,
 }: {
   totals: { name: string; amount: number; pct: number }[];
   categories: Category[];
+  onCategorySelect?: (name: string) => void;
 }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const colorOf = (i: number) => PIE_PALETTE[i % PIE_PALETTE.length];
@@ -653,12 +666,20 @@ function PieCard({
         {totals.map((t, i) => {
           const cat = getCategory(t.name, categories);
           return (
-            <li key={t.name} className="dash-pie-row">
-              <span className="dash-pie-swatch" style={{ background: colorOf(i) }} />
-              <span className="dash-pie-ico" aria-hidden="true">{cat.icon}</span>
-              <span className="dash-pie-name">{t.name}</span>
-              <span className="dash-pie-pct">{Math.round(t.pct * 100)}%</span>
-              <span className="dash-pie-amt">{fmtUSD(t.amount, 0)}</span>
+            <li key={t.name}>
+              <button
+                type="button"
+                className="dash-pie-row"
+                onClick={() => onCategorySelect?.(t.name)}
+                disabled={!onCategorySelect}
+                title={onCategorySelect ? `See ${t.name} transactions` : undefined}
+              >
+                <span className="dash-pie-swatch" style={{ background: colorOf(i) }} />
+                <span className="dash-pie-ico" aria-hidden="true">{cat.icon}</span>
+                <span className="dash-pie-name">{t.name}</span>
+                <span className="dash-pie-pct">{Math.round(t.pct * 100)}%</span>
+                <span className="dash-pie-amt">{fmtUSD(t.amount, 0)}</span>
+              </button>
             </li>
           );
         })}

@@ -10,6 +10,9 @@ type Props = {
   // Read-only connection: rows are display-only (no tap-to-edit, no
   // swipe-to-delete) because the app must never write the sheet.
   readOnly?: boolean;
+  // Seeds the category filter on mount — set when the user tapped a
+  // category on the Dashboard to jump straight to its transactions.
+  initialCatFilter?: string | null;
   onSelect: (tx: Transaction) => void;
   onDelete: (tx: Transaction) => Promise<void>;
 };
@@ -32,9 +35,17 @@ const fShortDate = (iso: string) => {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-export function Transactions({ txns, categories, loading, readOnly, onSelect, onDelete }: Props) {
+export function Transactions({
+  txns,
+  categories,
+  loading,
+  readOnly,
+  initialCatFilter,
+  onSelect,
+  onDelete,
+}: Props) {
   const [query, setQuery] = useState('');
-  const [catFilter, setCatFilter] = useState<string | null>(null);
+  const [catFilter, setCatFilter] = useState<string | null>(initialCatFilter ?? null);
   // Row id (composed of date+row) currently revealing its delete
   // action. Only one row open at a time — like iOS Mail.
   const [openRowId, setOpenRowId] = useState<string | null>(null);

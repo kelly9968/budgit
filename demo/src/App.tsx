@@ -168,6 +168,19 @@ function Main({
     if (!canWrite && tab === 'add') setTab('dash');
   }, [canWrite, tab]);
 
+  // Category tapped on the Dashboard pie legend — jumps to History
+  // pre-filtered to that category. One-shot: cleared as soon as the
+  // user leaves the tx tab, so a later manual tab-bar visit to History
+  // starts unfiltered instead of replaying a stale jump.
+  const [jumpCategory, setJumpCategory] = useState<string | null>(null);
+  useEffect(() => {
+    if (tab !== 'tx') setJumpCategory(null);
+  }, [tab]);
+  const handleCategoryJump = (name: string) => {
+    setJumpCategory(name);
+    setTab('tx');
+  };
+
   // Selected month — owned at app level so the header can render its
   // month nav even when the active tab is something other than the
   // dashboard. Dashboard reads it via prop.
@@ -537,6 +550,7 @@ function Main({
               categories={categories}
               onBudgetChange={handleBudgetChange}
               selectedMonth={selectedMonth}
+              onCategorySelect={handleCategoryJump}
             />
           ) : (
             <LoadingSplash />
@@ -549,6 +563,7 @@ function Main({
               categories={categories}
               loading={loading}
               readOnly={!canWrite}
+              initialCatFilter={jumpCategory}
               onSelect={setEditingTx}
               onDelete={handleEditDelete}
             />
