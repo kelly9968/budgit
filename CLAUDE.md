@@ -8,14 +8,6 @@ Budgie is a Google Sheets-backed budgeting app with a separate public marketing 
 - `marketing/` — the static marketing site.
 - `index.html` and other root files — the original upstream single-file prototype; not deployed.
 
-## Local checks
-
-```bash
-cd demo
-npm test
-npm run build
-```
-
 ## Deployments
 
 | Site | CapRover app | Domain | Deploy |

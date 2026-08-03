@@ -41,7 +41,7 @@ One-time Google Cloud setup is required for a new signing certificate:
 The APK download host is independent of Google authorization; no private/tailnet endpoint is baked
 into the app.
 
-## Build and test
+## Build
 
 Requirements: JDK 17 and an Android SDK containing platform/build-tools 36.
 
@@ -49,8 +49,7 @@ Requirements: JDK 17 and an Android SDK containing platform/build-tools 36.
 cd android
 export JAVA_HOME=/path/to/jdk-17
 export ANDROID_HOME=/path/to/android-sdk
-./gradlew test lintDebug assembleDebug
-./gradlew connectedDebugAndroidTest   # with an authorized device attached
+./gradlew assembleDebug
 ```
 
 Install a debug build:
